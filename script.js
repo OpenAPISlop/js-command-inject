@@ -47,7 +47,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 #${RID} *{box-sizing:border-box;font:inherit;color:inherit}
 #${RID}.collapsed{height:auto}
 
-/* Header / tabs — NO touch-action or drag cursor here so buttons remain clickable */
+/* Header / tabs â€” NO touch-action or drag cursor here so buttons remain clickable */
 #${RID} .h{
   display:flex;gap:.5rem;align-items:center;padding:.75rem .9rem;
   background:#0e1626;border-bottom:1px solid #1a2942;position:sticky;top:0;z-index:2;
@@ -118,7 +118,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
   border-radius:999px;padding:.5rem .95rem;font:600 14px/1 -apple-system,system-ui;z-index:2147483647;opacity:.98
 }
 
-/* Grip — the ONLY drag target; bigger and with touch-action:none for reliable drag */
+/* Grip â€” the ONLY drag target; bigger and with touch-action:none for reliable drag */
 #${RID} .grip{
   height:32px;cursor:n-resize;background:linear-gradient(180deg,#0e1626,#0a111d);border-top:1px solid #1a2942;
   display:flex;justify-content:center;align-items:center;-webkit-user-select:none;user-select:none;touch-action:none
@@ -189,7 +189,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
     // panel host
     var panelHost=E('div'); panelHost.className='panel'; panelHost.style.display='none';
     var crumbs=E('div'); crumbs.className='crumbs';
-    var backBtn=E('button'); backBtn.className='back'; backBtn.textContent='← Menu';
+    var backBtn=E('button'); backBtn.className='back'; backBtn.textContent='â†Â Menu';
     var crumbTitle=E('div'); crumbTitle.style.fontWeight='700';
     crumbs.append(backBtn,crumbTitle);
     var panelBody=E('div'); panelBody.className='scroller'; panelBody.style.padding='0';
@@ -259,8 +259,8 @@ const PANEL_LABELS = {
       var rows=[];
       rows.push(kv('User Agent',ua)); rows.push(kv('Platform',n.platform||'')); rows.push(kv('iOS (detected)',isIOS?'yes':'no'));
       rows.push(kv('Language(s)',lang||'')); rows.push(kv('Timezone',tz||'')); rows.push(kv('Online',n.onLine));
-      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' Ã— '+(DE.clientHeight||innerHeight)));
-      rows.push(kv('Screen',(c.width||'')+' Ã— '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
+      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' Ãƒâ€” '+(DE.clientHeight||innerHeight)));
+      rows.push(kv('Screen',(c.width||'')+' Ãƒâ€” '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
       rows.push(kv('LocalStorage',ls)); rows.push(kv('SessionStorage',ss)); rows.push(kv('Storage API',stor));
       rows.push(kv('Connection', [conn.type,conn.effectiveType,conn.downlink,conn.rtt].filter(Boolean).join(' / ')||'' ));
       rows.push(kv('Do Not Track',n.doNotTrack||'')); rows.push(kv('Referrer',D.referrer||'')); rows.push(kv('Visibility',D.visibilityState||'' ));
@@ -327,26 +327,26 @@ const PANEL_LABELS = {
         const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
         return fetch(url,{cache:'no-store'}).then(r=>r.json());
       }
-      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+'Â°C'; }
+      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+'Ã‚Â°C'; }
 
       async function runCity(name){
-        setStat('Looking upâ€¦');
+        setStat('Looking upÃ¢â‚¬Â¦');
         try{
           const {lat,lon,label}=await geocode(name);
           const d=await getForecast(lat,lon);
           render(label,d);
-          setStat('âœ“');
+          setStat('Ã¢Å“â€œ');
         }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
       }
       async function runGeo(){
-        setStat('Requesting locationâ€¦');
+        setStat('Requesting locationÃ¢â‚¬Â¦');
         if(!navigator.geolocation){ setStat('No GPS'); return; }
         navigator.geolocation.getCurrentPosition(async pos=>{
           try{
             const {latitude:lat,longitude:lon}=pos.coords||{};
             const d=await getForecast(lat,lon);
             render(`GPS: ${lat.toFixed(3)}, ${lon.toFixed(3)}`, d);
-            setStat('âœ“');
+            setStat('Ã¢Å“â€œ');
           }catch(_){ setStat('Error'); }
         }, _=> setStat('Denied'));
       }
@@ -354,14 +354,14 @@ const PANEL_LABELS = {
       function render(label, d){
         const cur=d.current_weather||{};
         const hours=d.hourly||{};
-        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} â€¢ Wind ${cur.windspeed??'-'} km/h`);
+        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} Ã¢â‚¬Â¢ Wind ${cur.windspeed??'-'} km/h`);
         const lines=[];
         if (hours.time && hours.temperature_2m){
           for(let i=0;i<6 && i<hours.time.length;i++){
             const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
             const temp=hours.temperature_2m[i];
             const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
-            lines.push(`${t} - ${fmtTemp(temp)} â€¢ ${pr} mm`);
+            lines.push(`${t} - ${fmtTemp(temp)} Ã¢â‚¬Â¢ ${pr} mm`);
           }
         }
         setHTML('wx-hours', lines.join('<br>')||'-');
@@ -607,7 +607,7 @@ Usage:
   nova.fetchWeather({lat:41.8781, lon:-87.6298}, {units:'f'})
 Options:
   hours: 1..24 (default 6)
-  units: 'auto' | 'f' | 'c' (default 'auto' â†’ Â°F if browser locale looks US)
+  units: 'auto' | 'f' | 'c' (default 'auto' Ã¢â€ â€™ Ã‚Â°F if browser locale looks US)
 */
 window.nova.fetchWeather = async function(q, opts = {}) {
   const { hours = 6, units = 'auto' } = opts;
@@ -618,7 +618,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     const lang = (navigator.language || '').toLowerCase();
     return /(^en-us|^en.*-us|\bus\b)/.test(lang);
   })();
-  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'Â°F' : Math.round(c)+'Â°C'));
+  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'Ã‚Â°F' : Math.round(c)+'Ã‚Â°C'));
   const log = (...a) => console.log('%c[nova][weather]', 'font-weight:700', ...a);
 
   function parsePlace(s){
@@ -682,8 +682,8 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 
     // Console output
     const cur = data.current_weather || {};
-    console.groupCollapsed('%c[nova] Weather âžœ ' + label, 'font-weight:700');
-    console.log('Current:', toUnit(cur.temperature), 'â€¢ Wind:', (cur.windspeed ?? '-') + ' km/h', 'â€¢ Code:', cur.weathercode ?? '-');
+    console.groupCollapsed('%c[nova] Weather Ã¢Å¾Å“ ' + label, 'font-weight:700');
+    console.log('Current:', toUnit(cur.temperature), 'Ã¢â‚¬Â¢ Wind:', (cur.windspeed ?? '-') + ' km/h', 'Ã¢â‚¬Â¢ Code:', cur.weathercode ?? '-');
 
     const hourly = data.hourly || {};
     const rows = (hourly.time || []).map((t,i)=>({
@@ -703,12 +703,12 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     try{
       const curEl = document.getElementById('wx-current');
       const hoursEl = document.getElementById('wx-hours');
-      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} â€¢ Wind ${cur.windspeed ?? '-'} km/h`;
+      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} Ã¢â‚¬Â¢ Wind ${cur.windspeed ?? '-'} km/h`;
       if (hoursEl && rows.length){
         const n = Math.max(1, Math.min(24, hours));
         hoursEl.innerHTML = rows.slice(0,n).map(r=>{
           const hh = (r.time.split('T')[1] || r.time).slice(0,5);
-          return `${hh} - ${toUnit(r.temp)} â€¢ ${r.precip_mm} mm`;
+          return `${hh} - ${toUnit(r.temp)} Ã¢â‚¬Â¢ ${r.precip_mm} mm`;
         }).join('<br>');
       }
     }catch(_){}
@@ -723,7 +723,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 /* ===== Robust nova.fetchCrypto: multi-try Kraken pairs + CoinGecko confirm ===== */
 window.nova = window.nova || {};
 
-/* Safe JSON helper if you donâ€™t already have it */
+/* Safe JSON helper if you donÃ¢â‚¬â„¢t already have it */
 nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
   try {
     const f = (globalThis.fetch || window.fetch).bind(globalThis);
@@ -811,11 +811,11 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       ];
     }
 
-    // Symbol or name â†’ build a candidate list (BTC, Bitcoin, etc.)
+    // Symbol or name Ã¢â€ â€™ build a candidate list (BTC, Bitcoin, etc.)
     const isBTC = /^btc$/i.test(q) || /^bitcoin$/i.test(q);
     const isETH = /^eth$/i.test(q) || /^ethereum$/i.test(q);
 
-    // Heuristic: treat anything containing â€œbtcâ€ as BTC; â€œethâ€ as ETH
+    // Heuristic: treat anything containing Ã¢â‚¬Å“btcÃ¢â‚¬Â as BTC; Ã¢â‚¬Å“ethÃ¢â‚¬Â as ETH
     const baseCodes = isBTC ? ['XXBT','XBT'] :
                       isETH ? ['XETH','ETH'] :
                       [q.toUpperCase(), q.toUpperCase().replace(/^([A-Z])$/,'X$1')];
@@ -861,7 +861,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
 
     // 0) Sanity: is Kraken reachable?
     if (!(await krakenUp())){
-      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickersâ€¦');
+      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickersÃ¢â‚¬Â¦');
     }
 
     // 1) Build candidate pair codes to try in order
@@ -894,7 +894,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
 
     // 4) Output
     if (!tk){
-      console.groupCollapsed('%c[nova] Kraken Ticker âžœ failed to resolve', 'font-weight:700;color:#ff5b6e');
+      console.groupCollapsed('%c[nova] Kraken Ticker Ã¢Å¾Å“ failed to resolve', 'font-weight:700;color:#ff5b6e');
       console.log('Tried pair codes (in order):', candidates);
       if (gecko) console.log('CoinGecko USD (for reference):', gecko.name, gecko.usd ?? '-');
       console.groupEnd();
@@ -916,7 +916,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       return pretty.includes('/') ? pretty : pretty.replace(/(BTC|ETH)(USD|EUR|USDT)$/,'$1/$2');
     })();
 
-    console.groupCollapsed('%c[nova] Kraken Ticker âžœ ' + display, 'font-weight:700');
+    console.groupCollapsed('%c[nova] Kraken Ticker Ã¢Å¾Å“ ' + display, 'font-weight:700');
     console.log('Kraken pair key:', tk.key, ' (requested:', usedPair, ')');
     console.log('Last:', tk.last != null ? ('$ ' + Number(tk.last).toLocaleString(undefined,{maximumFractionDigits:8})) : '-');
     const chg = (tk.last!=null && tk.open) ? ((tk.last - tk.open)/tk.open*100) : null;
@@ -931,14 +931,14 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       change_pct: chg!=null ? +chg.toFixed(2) : null
     }]);
     if (gecko){
-      console.log('CoinGecko (confirm):', gecko.name, 'USD â‰ˆ', gecko.usd ?? '-');
+      console.log('CoinGecko (confirm):', gecko.name, 'USD Ã¢â€°Ë†', gecko.usd ?? '-');
       if (deviate!=null) console.log('Diff vs Kraken:', (deviate).toFixed(2)+'%');
     } else {
       console.log('CoinGecko confirm skipped.');
     }
     console.groupEnd();
 
-    // Add a row to Novaâ€™s Network tab (best-effort)
+    // Add a row to NovaÃ¢â‚¬â„¢s Network tab (best-effort)
     try{
       const tb = document.querySelector('#nova-root .netwrap tbody');
       if (tb) {
