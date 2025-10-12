@@ -257,7 +257,7 @@ else if(name==='githubpage'){ buildGithubPage(panelBody); }
       var t=E('table'); var tb=E('tbody');
       tb.innerHTML = [
         kv('Dev','OpenAPISlop'),
-        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject-utility'),
+        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject'),
         kv('Version','0.1.0')
       ].join('');
       t.append(tb); box.append(t); root.append(box);
@@ -371,7 +371,7 @@ function buildGithubPage(root){
         }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
       }
       async function runGeo(){
-        setStat('Requesting locationÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
+        setStat('Requesting location');
         if(!navigator.geolocation){ setStat('No GPS'); return; }
         navigator.geolocation.getCurrentPosition(async pos=>{
           try{
@@ -386,7 +386,7 @@ function buildGithubPage(root){
       function render(label, d){
         const cur=d.current_weather||{};
         const hours=d.hourly||{};
-        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Wind ${cur.windspeed??'-'} km/h`);
+        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} Wind ${cur.windspeed??'-'} km/h`);
         const lines=[];
         if (hours.time && hours.temperature_2m){
           for(let i=0;i<6 && i<hours.time.length;i++){
