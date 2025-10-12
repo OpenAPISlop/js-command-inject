@@ -259,8 +259,8 @@ const PANEL_LABELS = {
       var rows=[];
       rows.push(kv('User Agent',ua)); rows.push(kv('Platform',n.platform||'')); rows.push(kv('iOS (detected)',isIOS?'yes':'no'));
       rows.push(kv('Language(s)',lang||'')); rows.push(kv('Timezone',tz||'')); rows.push(kv('Online',n.onLine));
-      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' Ãƒâ€” '+(DE.clientHeight||innerHeight)));
-      rows.push(kv('Screen',(c.width||'')+' Ãƒâ€” '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
+      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' -” '+(DE.clientHeight||innerHeight)));
+      rows.push(kv('Screen',(c.width||'')+' -” '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
       rows.push(kv('LocalStorage',ls)); rows.push(kv('SessionStorage',ss)); rows.push(kv('Storage API',stor));
       rows.push(kv('Connection', [conn.type,conn.effectiveType,conn.downlink,conn.rtt].filter(Boolean).join(' / ')||'' ));
       rows.push(kv('Do Not Track',n.doNotTrack||'')); rows.push(kv('Referrer',D.referrer||'')); rows.push(kv('Visibility',D.visibilityState||'' ));
