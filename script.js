@@ -179,18 +179,26 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
     // Menu
     var colMenu=E('section'); colMenu.className='col'; colMenu.dataset.name='menu'; colMenu.setAttribute('aria-hidden','true');
     var menuList=E('div'); menuList.className='menu-list scroller';
-    menuList.append(makeMenuItem('Crypto', 'Open billygpt.com/dash in a new tab', () => openPanel('crypto')));
+    
     menuList.append(makeMenuItem('Info', 'app info', () => openPanel('creator')));
 
-
-
-        menuList.append(makeMenuItem('Extended Console', 'Open a page that has more console command activated commands embedded within it.', () => openPanel('commands')));
-    menuList.append(makeMenuItem('About', 'Device, browser & environment info', () => openPanel('about')));
+menuList.append(makeMenuItem('About', 'Device, browser & environment info', () => openPanel('about')));
     colMenu.append(menuList);
 
 
-
 menuList.append(makeMenuItem('GitHub', 'link to developer GitHub', () => openPanel('githubpage')));
+
+        menuList.append(makeMenuItem('Extended Console', 'Open a page that has more console command activated commands embedded within it.', () => openPanel('commands')));
+    
+
+
+
+
+menuList.append(makeMenuItem('Crypto', 'Open billygpt.com/dash in a new tab', () => openPanel('crypto')));
+
+
+
+
 
     // panel host
     var panelHost=E('div'); panelHost.className='panel'; panelHost.style.display='none';
