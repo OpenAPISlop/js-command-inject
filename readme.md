@@ -35,4 +35,4 @@ javascript:!function(d,u){
   s.defer=1;
   s.onerror=function(){alert('nova load failed')};
   d.documentElement.appendChild(s);
-}(document,'https://cdn.jsdelivr.net/gh/OpenAPISlop/js-command-inject-utility@latest/script.js');
+}(document,'https://cdn.jsdelivr.net/gh/OpenAPISlop/js-command-inject-utility@main/script.js');
