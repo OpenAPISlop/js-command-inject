@@ -47,7 +47,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 #${RID} *{box-sizing:border-box;font:inherit;color:inherit}
 #${RID}.collapsed{height:auto}
 
-/* Header / tabs €” NO touch-action or drag cursor here so buttons remain clickable */
+/* Header / tabs Ã¢â‚¬â€ NO touch-action or drag cursor here so buttons remain clickable */
 #${RID} .h{
   display:flex;gap:.5rem;align-items:center;padding:.75rem .9rem;
   background:#0e1626;border-bottom:1px solid #1a2942;position:sticky;top:0;z-index:2;
@@ -118,7 +118,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
   border-radius:999px;padding:.5rem .95rem;font:600 14px/1 -apple-system,system-ui;z-index:2147483647;opacity:.98
 }
 
-/* Grip €” the ONLY drag target; bigger and with touch-action:none for reliable drag */
+/* Grip Ã¢â‚¬â€ the ONLY drag target; bigger and with touch-action:none for reliable drag */
 #${RID} .grip{
   height:32px;cursor:n-resize;background:linear-gradient(180deg,#0e1626,#0a111d);border-top:1px solid #1a2942;
   display:flex;justify-content:center;align-items:center;-webkit-user-select:none;user-select:none;touch-action:none
@@ -140,7 +140,6 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 `;
   (document.head||document.documentElement).appendChild(s);
 }
-    
   // ---------- UI ----------
   function buildUI(){
     if (D.getElementById(RID)) return null;
@@ -151,7 +150,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 
     // header + tabs
     var head=E('div'); head.className='h';
-    var title=E('div'); title.className='title'; title.textContent='nova';
+    var title=E('div'); title.className='title'; title.textContent='';
     var tC=E('button'); tC.className='t'; tC.textContent='Console'; tC.dataset.tab='console'; tC.setAttribute('aria-selected','true');
     var tN=E('button'); tN.className='t'; tN.textContent='Network'; tN.dataset.tab='net'; tN.setAttribute('aria-selected','false');
     var tM=E('button'); tM.className='t'; tM.textContent='Menu';    tM.dataset.tab='menu'; tM.setAttribute('aria-selected','false');
@@ -182,14 +181,21 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
     var menuList=E('div'); menuList.className='menu-list scroller';
     menuList.append(makeMenuItem('Crypto', 'Open billygpt.com/dash in a new tab', () => openPanel('crypto')));
     menuList.append(makeMenuItem('Info', 'app info', () => openPanel('creator')));
+
+
+
         menuList.append(makeMenuItem('Extended Console', 'Open a page that has more console command activated commands embedded within it.', () => openPanel('commands')));
     menuList.append(makeMenuItem('About', 'Device, browser & environment info', () => openPanel('about')));
     colMenu.append(menuList);
 
+
+
+menuList.append(makeMenuItem('GitHub', 'link to developer GitHub', () => openPanel('githubpage')));
+
     // panel host
     var panelHost=E('div'); panelHost.className='panel'; panelHost.style.display='none';
     var crumbs=E('div'); crumbs.className='crumbs';
-    var backBtn=E('button'); backBtn.className='back'; backBtn.textContent='← Menu ';
+    var backBtn=E('button'); backBtn.className='back'; backBtn.textContent='Back';
     var crumbTitle=E('div'); crumbTitle.style.fontWeight='700';
     crumbs.append(backBtn,crumbTitle);
     var panelBody=E('div'); panelBody.className='scroller'; panelBody.style.padding='0';
@@ -218,6 +224,7 @@ const PANEL_LABELS = {
   crypto: 'Crypto Dashboard',
   weather: 'Weather',
   commands: 'Extended Console',
+githubpage: 'GitHub Page',
   about: 'About',
 };
  crumbTitle.textContent = PANEL_LABELS[name] || (name[0].toUpperCase() + name.slice(1));
@@ -226,6 +233,7 @@ const PANEL_LABELS = {
       panelBody.innerHTML='';
       if(name==='crypto'){ buildCrypto(panelBody); }
       else if(name==='weather'){ buildWeather(panelBody); }
+else if(name==='githubpage'){ buildGithubPage(panelBody); }
             else if(name==='commands'){ buildCommandList(panelBody); }
       else if(name==='creator'){ buildCreator(panelBody); }
       else if(name==='about'){ buildAbout(panelBody); }
@@ -241,7 +249,7 @@ const PANEL_LABELS = {
       var t=E('table'); var tb=E('tbody');
       tb.innerHTML = [
         kv('Dev','OpenAPISlop'),
-        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject-utility'),
+        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject'),
         kv('Version','0.1.0')
       ].join('');
       t.append(tb); box.append(t); root.append(box);
@@ -259,8 +267,8 @@ const PANEL_LABELS = {
       var rows=[];
       rows.push(kv('User Agent',ua)); rows.push(kv('Platform',n.platform||'')); rows.push(kv('iOS (detected)',isIOS?'yes':'no'));
       rows.push(kv('Language(s)',lang||'')); rows.push(kv('Timezone',tz||'')); rows.push(kv('Online',n.onLine));
-      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' x '+(DE.clientHeight||innerHeight)));
-      rows.push(kv('Screen',(c.width||'')+' x '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
+      rows.push(kv('Device Memory',mem||'')); rows.push(kv('HW Threads',n.hardwareConcurrency||'')); rows.push(kv('Viewport',(DE.clientWidth||innerWidth)+' - '+(DE.clientHeight||innerHeight)));
+      rows.push(kv('Screen',(c.width||'')+' - '+(c.height||''))); rows.push(kv('DPR',dpr)); rows.push(kv('Cookies Enabled',n.cookieEnabled));
       rows.push(kv('LocalStorage',ls)); rows.push(kv('SessionStorage',ss)); rows.push(kv('Storage API',stor));
       rows.push(kv('Connection', [conn.type,conn.effectiveType,conn.downlink,conn.rtt].filter(Boolean).join(' / ')||'' ));
       rows.push(kv('Do Not Track',n.doNotTrack||'')); rows.push(kv('Referrer',D.referrer||'')); rows.push(kv('Visibility',D.visibilityState||'' ));
@@ -295,6 +303,22 @@ const PANEL_LABELS = {
       on(card.querySelector('#open-dash'),'click',()=>{ window.open('https://openapislop.github.io/js-command-inject-utility/','_blank','noopener'); });
     }
 
+
+// GitHub menubar
+
+function buildGithubPage(root){
+      const wrap=E('div'); wrap.className='grid';
+      const card=E('div'); card.className='card';
+      card.innerHTML = `
+        <b>GitHub</b>
+        <div class="muted" style="margin:.4rem 0">Redirects to GitHub page.</div>
+        <button id="open-dash" class="run">Open GitHub Page</button>
+      `;
+      wrap.append(card);
+      root.append(wrap);
+      on(card.querySelector('#open-dash'),'click',()=>{ window.open('https://github.com/OpenAPISlop','_blank','noopener'); });
+    }
+
     // --- Weather (Open-Meteo): open API, no key required ---
     function buildWeather(root){
       const ui=E('div'); ui.className='grid';
@@ -327,26 +351,26 @@ const PANEL_LABELS = {
         const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
         return fetch(url,{cache:'no-store'}).then(r=>r.json());
       }
-      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+'‚°C'; }
+      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+' Â°C'; }
 
       async function runCity(name){
-        setStat('Looking up¢‚¬¦');
+        setStat('Looking up');
         try{
           const {lat,lon,label}=await geocode(name);
           const d=await getForecast(lat,lon);
           render(label,d);
-          setStat('¢Å“€œ');
+          setStat('-');
         }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
       }
       async function runGeo(){
-        setStat('Requesting location¢‚¬¦');
+        setStat('Requesting locationÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
         if(!navigator.geolocation){ setStat('No GPS'); return; }
         navigator.geolocation.getCurrentPosition(async pos=>{
           try{
             const {latitude:lat,longitude:lon}=pos.coords||{};
             const d=await getForecast(lat,lon);
             render(`GPS: ${lat.toFixed(3)}, ${lon.toFixed(3)}`, d);
-            setStat('¢Å“€œ');
+            setStat('-');
           }catch(_){ setStat('Error'); }
         }, _=> setStat('Denied'));
       }
@@ -354,14 +378,14 @@ const PANEL_LABELS = {
       function render(label, d){
         const cur=d.current_weather||{};
         const hours=d.hourly||{};
-        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} ¢‚¬¢ Wind ${cur.windspeed??'-'} km/h`);
+        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Wind ${cur.windspeed??'-'} km/h`);
         const lines=[];
         if (hours.time && hours.temperature_2m){
           for(let i=0;i<6 && i<hours.time.length;i++){
             const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
             const temp=hours.temperature_2m[i];
             const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
-            lines.push(`${t} - ${fmtTemp(temp)} ¢‚¬¢ ${pr} mm`);
+            lines.push(`${t} - ${fmtTemp(temp)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${pr} mm`);
           }
         }
         setHTML('wx-hours', lines.join('<br>')||'-');
@@ -534,7 +558,9 @@ const PANEL_LABELS = {
     restoreVP();
     try{ document.getElementById(SID)?.remove(); }catch(_){}
     try{ document.getElementById(RID)?.remove(); }catch(_){}
-    try{ var b=document.getElementById(BID); if(b){ b.style.display=''; } }catch(_){}
+// in off()
+try{ document.getElementById(BID)?.remove(); }catch(_){}
+
     delete window.nova;
     try{ console.log('%cnova off (restored)','font:600 12px ui-monospace'); }catch(_){}
   }
@@ -607,7 +633,7 @@ Usage:
   nova.fetchWeather({lat:41.8781, lon:-87.6298}, {units:'f'})
 Options:
   hours: 1..24 (default 6)
-  units: 'auto' | 'f' | 'c' (default 'auto' ¢€ €™ ‚°F if browser locale looks US)
+  units: 'auto' | 'f' | 'c' (default 'auto' ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ Ãƒâ€šÃ‚Â°F if browser locale looks US)
 */
 window.nova.fetchWeather = async function(q, opts = {}) {
   const { hours = 6, units = 'auto' } = opts;
@@ -618,7 +644,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     const lang = (navigator.language || '').toLowerCase();
     return /(^en-us|^en.*-us|\bus\b)/.test(lang);
   })();
-  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'‚°F' : Math.round(c)+'‚°C'));
+  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'Ãƒâ€šÃ‚Â°F' : Math.round(c)+'Ãƒâ€šÃ‚Â°C'));
   const log = (...a) => console.log('%c[nova][weather]', 'font-weight:700', ...a);
 
   function parsePlace(s){
@@ -682,8 +708,8 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 
     // Console output
     const cur = data.current_weather || {};
-    console.groupCollapsed('%c[nova] Weather ¢Å¾Å“ ' + label, 'font-weight:700');
-    console.log('Current:', toUnit(cur.temperature), '¢‚¬¢ Wind:', (cur.windspeed ?? '-') + ' km/h', '¢‚¬¢ Code:', cur.weathercode ?? '-');
+    console.groupCollapsed('%c[nova] Weather ÃƒÂ¢Ã…Â¾Ã…â€œ ' + label, 'font-weight:700');
+    console.log('Current:', toUnit(cur.temperature), 'Wind:', (cur.windspeed ?? '-') + ' km/h', 'Code:', cur.weathercode ?? '-');
 
     const hourly = data.hourly || {};
     const rows = (hourly.time || []).map((t,i)=>({
@@ -703,12 +729,12 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     try{
       const curEl = document.getElementById('wx-current');
       const hoursEl = document.getElementById('wx-hours');
-      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} ¢‚¬¢ Wind ${cur.windspeed ?? '-'} km/h`;
+      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Wind ${cur.windspeed ?? '-'} km/h`;
       if (hoursEl && rows.length){
         const n = Math.max(1, Math.min(24, hours));
         hoursEl.innerHTML = rows.slice(0,n).map(r=>{
           const hh = (r.time.split('T')[1] || r.time).slice(0,5);
-          return `${hh} - ${toUnit(r.temp)} ¢‚¬¢ ${r.precip_mm} mm`;
+          return `${hh} - ${toUnit(r.temp)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${r.precip_mm} mm`;
         }).join('<br>');
       }
     }catch(_){}
@@ -723,7 +749,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 /* ===== Robust nova.fetchCrypto: multi-try Kraken pairs + CoinGecko confirm ===== */
 window.nova = window.nova || {};
 
-/* Safe JSON helper if you don¢‚¬„¢t already have it */
+/* Safe JSON helper if you donÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢t already have it */
 nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
   try {
     const f = (globalThis.fetch || window.fetch).bind(globalThis);
@@ -811,11 +837,11 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       ];
     }
 
-    // Symbol or name ¢€ €™ build a candidate list (BTC, Bitcoin, etc.)
+    // Symbol or name ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ build a candidate list (BTC, Bitcoin, etc.)
     const isBTC = /^btc$/i.test(q) || /^bitcoin$/i.test(q);
     const isETH = /^eth$/i.test(q) || /^ethereum$/i.test(q);
 
-    // Heuristic: treat anything containing ¢‚¬Å“btc¢‚¬ as BTC; ¢‚¬Å“eth¢‚¬ as ETH
+    // Heuristic: treat anything containing ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œbtcÃƒÂ¢Ã¢â€šÂ¬Ã‚Â as BTC; ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œethÃƒÂ¢Ã¢â€šÂ¬Ã‚Â as ETH
     const baseCodes = isBTC ? ['XXBT','XBT'] :
                       isETH ? ['XETH','ETH'] :
                       [q.toUpperCase(), q.toUpperCase().replace(/^([A-Z])$/,'X$1')];
@@ -861,7 +887,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
 
     // 0) Sanity: is Kraken reachable?
     if (!(await krakenUp())){
-      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickers¢‚¬¦');
+      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickersÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
     }
 
     // 1) Build candidate pair codes to try in order
@@ -894,7 +920,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
 
     // 4) Output
     if (!tk){
-      console.groupCollapsed('%c[nova] Kraken Ticker ¢Å¾Å“ failed to resolve', 'font-weight:700;color:#ff5b6e');
+      console.groupCollapsed('%c[nova] Kraken Ticker - failed to resolve', 'font-weight:700;color:#ff5b6e');
       console.log('Tried pair codes (in order):', candidates);
       if (gecko) console.log('CoinGecko USD (for reference):', gecko.name, gecko.usd ?? '-');
       console.groupEnd();
@@ -916,7 +942,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       return pretty.includes('/') ? pretty : pretty.replace(/(BTC|ETH)(USD|EUR|USDT)$/,'$1/$2');
     })();
 
-    console.groupCollapsed('%c[nova] Kraken Ticker ¢Å¾Å“ ' + display, 'font-weight:700');
+    console.groupCollapsed('%c[nova] Kraken Ticker - ' + display, 'font-weight:700');
     console.log('Kraken pair key:', tk.key, ' (requested:', usedPair, ')');
     console.log('Last:', tk.last != null ? ('$ ' + Number(tk.last).toLocaleString(undefined,{maximumFractionDigits:8})) : '-');
     const chg = (tk.last!=null && tk.open) ? ((tk.last - tk.open)/tk.open*100) : null;
@@ -931,14 +957,14 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       change_pct: chg!=null ? +chg.toFixed(2) : null
     }]);
     if (gecko){
-      console.log('CoinGecko (confirm):', gecko.name, 'USD ¢€°Ë†', gecko.usd ?? '-');
+      console.log('CoinGecko (confirm):', gecko.name, 'USD ÃƒÂ¢Ã¢â‚¬Â°Ã‹â€ ', gecko.usd ?? '-');
       if (deviate!=null) console.log('Diff vs Kraken:', (deviate).toFixed(2)+'%');
     } else {
       console.log('CoinGecko confirm skipped.');
     }
     console.groupEnd();
 
-    // Add a row to Nova¢‚¬„¢s Network tab (best-effort)
+    // Add a row to NovaÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s Network tab (best-effort)
     try{
       const tb = document.querySelector('#nova-root .netwrap tbody');
       if (tb) {
