@@ -180,7 +180,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
     var colMenu=E('section'); colMenu.className='col'; colMenu.dataset.name='menu'; colMenu.setAttribute('aria-hidden','true');
     var menuList=E('div'); menuList.className='menu-list scroller';
     
-    menuList.append(makeMenuItem('Info', 'app info', () => openPanel('creator')));
+    menuList.append(makeMenuItem('Info', 'App info', () => openPanel('creator')));
 
 menuList.append(makeMenuItem('About', 'Device, browser & environment info', () => openPanel('about')));
     colMenu.append(menuList);
@@ -258,7 +258,8 @@ else if(name==='githubpage'){ buildGithubPage(panelBody); }
       tb.innerHTML = [
         kv('Dev','OpenAPISlop'),
         kv('GitHub','https://github.com/OpenAPISlop/js-command-inject'),
-        kv('Version','0.1.0')
+        kv('Version','0.1.0'),
+        kv('Description', 'This app was created for uhhhhhhh the purpose of it is uhhhhh')
       ].join('');
       t.append(tb); box.append(t); root.append(box);
     }
