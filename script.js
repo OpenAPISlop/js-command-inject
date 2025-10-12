@@ -252,7 +252,7 @@ const PANEL_LABELS = {
       `;
       wrap.append(card);
       root.append(wrap);
-      on(card.querySelector('#open-dash'),'click',()=>{ window.open('https://openapislop.github.io/ConsoleCommands/','_blank','noopener'); });
+      on(card.querySelector('#open-dash'),'click',()=>{ window.open('https://openapislop.github.io/js-cmd-inject-utility/','_blank','noopener'); });
     }
 
     // --- Weather (Open-Meteo): open API, no key required ---
