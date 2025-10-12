@@ -177,7 +177,7 @@ const PANEL_LABELS = {
   creator: 'App Info',        
   crypto: 'Crypto Dashboard',
   weather: 'Weather',
-  commands: 'Command List',
+  commands: 'Extended Console',
   about: 'About',
 };
  crumbTitle.textContent = PANEL_LABELS[name] || (name[0].toUpperCase() + name.slice(1));
@@ -246,7 +246,7 @@ const PANEL_LABELS = {
       const wrap=E('div'); wrap.className='grid';
       const card=E('div'); card.className='card';
       card.innerHTML = `
-        <b>Command List</b>
+        <b>Extended Console</b>
         <div class="muted" style="margin:.4rem 0">Launches a page that has additional javascript functions that can be called from the console.</div>
         <button id="open-dash" class="run">Open Console Utilities Page</button>
       `;
