@@ -200,9 +200,9 @@ const PANEL_LABELS = {
       var box=E('div'); box.className='about';
       var t=E('table'); var tb=E('tbody');
       tb.innerHTML = [
-        kv('l','dev'),
-        kv('GitHub','https://github.com/comingsoon'),
-        kv('Version','0.9')
+        kv('Dev','OpenAPISlop'),
+        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject-utility'),
+        kv('Version','0.1.0')
       ].join('');
       t.append(tb); box.append(t); root.append(box);
     }
