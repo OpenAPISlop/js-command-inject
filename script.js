@@ -47,7 +47,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 #${RID} *{box-sizing:border-box;font:inherit;color:inherit}
 #${RID}.collapsed{height:auto}
 
-/* Header / tabs Ã¢â‚¬â€ NO touch-action or drag cursor here so buttons remain clickable */
+/* Header / tabs â€” NO touch-action or drag cursor here so buttons remain clickable */
 #${RID} .h{
   display:flex;gap:.5rem;align-items:center;padding:.75rem .9rem;
   background:#0e1626;border-bottom:1px solid #1a2942;position:sticky;top:0;z-index:2;
@@ -118,7 +118,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
   border-radius:999px;padding:.5rem .95rem;font:600 14px/1 -apple-system,system-ui;z-index:2147483647;opacity:.98
 }
 
-/* Grip Ã¢â‚¬â€ the ONLY drag target; bigger and with touch-action:none for reliable drag */
+/* Grip â€” the ONLY drag target; bigger and with touch-action:none for reliable drag */
 #${RID} .grip{
   height:32px;cursor:n-resize;background:linear-gradient(180deg,#0e1626,#0a111d);border-top:1px solid #1a2942;
   display:flex;justify-content:center;align-items:center;-webkit-user-select:none;user-select:none;touch-action:none
@@ -150,7 +150,7 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 
     // header + tabs
     var head=E('div'); head.className='h';
-    var title=E('div'); title.className='title'; title.textContent='';
+    var title=E('div'); title.className='title'; title.textContent='nova';
     var tC=E('button'); tC.className='t'; tC.textContent='Console'; tC.dataset.tab='console'; tC.setAttribute('aria-selected','true');
     var tN=E('button'); tN.className='t'; tN.textContent='Network'; tN.dataset.tab='net'; tN.setAttribute('aria-selected','false');
     var tM=E('button'); tM.className='t'; tM.textContent='Menu';    tM.dataset.tab='menu'; tM.setAttribute('aria-selected','false');
@@ -249,7 +249,7 @@ else if(name==='githubpage'){ buildGithubPage(panelBody); }
       var t=E('table'); var tb=E('tbody');
       tb.innerHTML = [
         kv('Dev','OpenAPISlop'),
-        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject'),
+        kv('GitHub','https://github.com/OpenAPISlop/js-command-inject-utility'),
         kv('Version','0.1.0')
       ].join('');
       t.append(tb); box.append(t); root.append(box);
@@ -351,7 +351,7 @@ function buildGithubPage(root){
         const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
         return fetch(url,{cache:'no-store'}).then(r=>r.json());
       }
-      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+' Â°C'; }
+      function fmtTemp(x){ return (x!=null?Math.round(x):'-')+' °C'; }
 
       async function runCity(name){
         setStat('Looking up');
@@ -363,7 +363,7 @@ function buildGithubPage(root){
         }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
       }
       async function runGeo(){
-        setStat('Requesting locationÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
+        setStat('Requesting locationÃ¢â‚¬Â¦');
         if(!navigator.geolocation){ setStat('No GPS'); return; }
         navigator.geolocation.getCurrentPosition(async pos=>{
           try{
@@ -378,14 +378,14 @@ function buildGithubPage(root){
       function render(label, d){
         const cur=d.current_weather||{};
         const hours=d.hourly||{};
-        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Wind ${cur.windspeed??'-'} km/h`);
+        set('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} Ã¢â‚¬Â¢ Wind ${cur.windspeed??'-'} km/h`);
         const lines=[];
         if (hours.time && hours.temperature_2m){
           for(let i=0;i<6 && i<hours.time.length;i++){
             const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
             const temp=hours.temperature_2m[i];
             const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
-            lines.push(`${t} - ${fmtTemp(temp)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${pr} mm`);
+            lines.push(`${t} - ${fmtTemp(temp)} Ã¢â‚¬Â¢ ${pr} mm`);
           }
         }
         setHTML('wx-hours', lines.join('<br>')||'-');
@@ -558,9 +558,7 @@ function buildGithubPage(root){
     restoreVP();
     try{ document.getElementById(SID)?.remove(); }catch(_){}
     try{ document.getElementById(RID)?.remove(); }catch(_){}
-// in off()
-try{ document.getElementById(BID)?.remove(); }catch(_){}
-
+    try{ var b=document.getElementById(BID); if(b){ b.style.display=''; } }catch(_){}
     delete window.nova;
     try{ console.log('%cnova off (restored)','font:600 12px ui-monospace'); }catch(_){}
   }
@@ -633,7 +631,7 @@ Usage:
   nova.fetchWeather({lat:41.8781, lon:-87.6298}, {units:'f'})
 Options:
   hours: 1..24 (default 6)
-  units: 'auto' | 'f' | 'c' (default 'auto' ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ Ãƒâ€šÃ‚Â°F if browser locale looks US)
+  units: 'auto' | 'f' | 'c' (default 'auto' Ã¢â€ â€™ Ã‚Â°F if browser locale looks US)
 */
 window.nova.fetchWeather = async function(q, opts = {}) {
   const { hours = 6, units = 'auto' } = opts;
@@ -644,7 +642,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     const lang = (navigator.language || '').toLowerCase();
     return /(^en-us|^en.*-us|\bus\b)/.test(lang);
   })();
-  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'Ãƒâ€šÃ‚Â°F' : Math.round(c)+'Ãƒâ€šÃ‚Â°C'));
+  const toUnit = (c) => (c == null ? '-' : (preferF ? Math.round((c*9)/5 + 32)+'Ã‚Â°F' : Math.round(c)+'Ã‚Â°C'));
   const log = (...a) => console.log('%c[nova][weather]', 'font-weight:700', ...a);
 
   function parsePlace(s){
@@ -708,7 +706,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 
     // Console output
     const cur = data.current_weather || {};
-    console.groupCollapsed('%c[nova] Weather ÃƒÂ¢Ã…Â¾Ã…â€œ ' + label, 'font-weight:700');
+    console.groupCollapsed('%c[nova] Weather Ã¢Å¾Å“ ' + label, 'font-weight:700');
     console.log('Current:', toUnit(cur.temperature), 'Wind:', (cur.windspeed ?? '-') + ' km/h', 'Code:', cur.weathercode ?? '-');
 
     const hourly = data.hourly || {};
@@ -729,12 +727,12 @@ window.nova.fetchWeather = async function(q, opts = {}) {
     try{
       const curEl = document.getElementById('wx-current');
       const hoursEl = document.getElementById('wx-hours');
-      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Wind ${cur.windspeed ?? '-'} km/h`;
+      if (curEl) curEl.innerHTML = `${label}<br>Now: ${toUnit(cur.temperature)} Ã¢â‚¬Â¢ Wind ${cur.windspeed ?? '-'} km/h`;
       if (hoursEl && rows.length){
         const n = Math.max(1, Math.min(24, hours));
         hoursEl.innerHTML = rows.slice(0,n).map(r=>{
           const hh = (r.time.split('T')[1] || r.time).slice(0,5);
-          return `${hh} - ${toUnit(r.temp)} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${r.precip_mm} mm`;
+          return `${hh} - ${toUnit(r.temp)} Ã¢â‚¬Â¢ ${r.precip_mm} mm`;
         }).join('<br>');
       }
     }catch(_){}
@@ -749,7 +747,7 @@ window.nova.fetchWeather = async function(q, opts = {}) {
 /* ===== Robust nova.fetchCrypto: multi-try Kraken pairs + CoinGecko confirm ===== */
 window.nova = window.nova || {};
 
-/* Safe JSON helper if you donÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢t already have it */
+/* Safe JSON helper if you donÃ¢â‚¬â„¢t already have it */
 nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
   try {
     const f = (globalThis.fetch || window.fetch).bind(globalThis);
@@ -837,11 +835,11 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       ];
     }
 
-    // Symbol or name ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ build a candidate list (BTC, Bitcoin, etc.)
+    // Symbol or name Ã¢â€ â€™ build a candidate list (BTC, Bitcoin, etc.)
     const isBTC = /^btc$/i.test(q) || /^bitcoin$/i.test(q);
     const isETH = /^eth$/i.test(q) || /^ethereum$/i.test(q);
 
-    // Heuristic: treat anything containing ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œbtcÃƒÂ¢Ã¢â€šÂ¬Ã‚Â as BTC; ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œethÃƒÂ¢Ã¢â€šÂ¬Ã‚Â as ETH
+    // Heuristic: treat anything containing Ã¢â‚¬Å“btcÃ¢â‚¬Â as BTC; Ã¢â‚¬Å“ethÃ¢â‚¬Â as ETH
     const baseCodes = isBTC ? ['XXBT','XBT'] :
                       isETH ? ['XETH','ETH'] :
                       [q.toUpperCase(), q.toUpperCase().replace(/^([A-Z])$/,'X$1')];
@@ -887,7 +885,7 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
 
     // 0) Sanity: is Kraken reachable?
     if (!(await krakenUp())){
-      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickersÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
+      warn('Kraken API not reachable right now (Time endpoint failed). Will still try tickersÃ¢â‚¬Â¦');
     }
 
     // 1) Build candidate pair codes to try in order
@@ -957,14 +955,14 @@ nova._httpJSON = nova._httpJSON || (async function safeJSON(url){
       change_pct: chg!=null ? +chg.toFixed(2) : null
     }]);
     if (gecko){
-      console.log('CoinGecko (confirm):', gecko.name, 'USD ÃƒÂ¢Ã¢â‚¬Â°Ã‹â€ ', gecko.usd ?? '-');
+      console.log('CoinGecko (confirm):', gecko.name, 'USD Ã¢â€°Ë†', gecko.usd ?? '-');
       if (deviate!=null) console.log('Diff vs Kraken:', (deviate).toFixed(2)+'%');
     } else {
       console.log('CoinGecko confirm skipped.');
     }
     console.groupEnd();
 
-    // Add a row to NovaÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s Network tab (best-effort)
+    // Add a row to NovaÃ¢â‚¬â„¢s Network tab (best-effort)
     try{
       const tb = document.querySelector('#nova-root .netwrap tbody');
       if (tb) {
