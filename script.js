@@ -986,6 +986,85 @@ Plugins.register({
 });
 
 
+//Weather Plugin
+
+  Plugins.register({
+    id:'weather', title:'Weather',
+    mount(root,{Services}){
+      const ui=E('div',{className:'grid'});
+      const c1=E('div',{className:'card'});
+      c1.innerHTML=`
+        <b>Lookup</b>
+        <div class="muted" style="margin:.4rem 0">City (e.g. "Chicago") or use GPS</div>
+        <div style="display:flex;gap:.5rem">
+          <input id="wx-city" class="inp" placeholder="City">
+         
+        </div>
+         <button id="wx-go" style="margin-top:1rem;" class="run">Fetch</button>
+        <div style="display:flex;gap:.5rem;margin-top:.5rem">
+          <button id="wx-geo" class="run">Use GPS</button>
+          <span class="muted" id="wx-status" style="align-self:center">-</span>
+        </div>`;
+      const c2=E('div',{className:'card'}); c2.innerHTML = `<b>Current</b><div id="wx-current" class="muted">-</div>`;
+      const c3=E('div',{className:'card'}); c3.innerHTML = `<b>Next 6 hours</b><div id="wx-hours" class="muted">-</div>`;
+      ui.append(c1,c2,c3); root.append(ui);
+
+      const set=(id,v)=>{ const el=D.getElementById(id); if(el) el.textContent=v; };
+      const setHTML=(id,html)=>{ const el=D.getElementById(id); if(el) el.innerHTML=html; };
+      const setStat=msg=>set('wx-status',msg);
+      const fmtTempC=x=> (x!=null?Math.round(x):'-')+' °C';
+
+      async function geocode(name){
+        const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`;
+        const j=await Services.httpJSON(url);
+        const r=j && j.results && j.results[0];
+        if(!r) throw new Error('City not found');
+        return {lat:r.latitude, lon:r.longitude, label:`${r.name}${r.admin1?(', '+r.admin1):''}, ${r.country_code||''}`};
+      }
+      async function getForecast(lat,lon){
+        const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
+        return Services.httpJSON(url);
+      }
+      function render(label, d){
+        const cur=d.current_weather||{}, hours=d.hourly||{};
+        setHTML('wx-current', `${label}<br>Now: ${fmtTempC(cur.temperature)} • Wind ${cur.windspeed??'-'} km/h`);
+        const lines=[];
+        if (hours.time && hours.temperature_2m){
+          for(let i=0;i<6 && i<hours.time.length;i++){
+            const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
+            const temp=hours.temperature_2m[i];
+            const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
+            lines.push(`${t} - ${fmtTempC(temp)} • ${pr} mm`);
+          }
+        }
+        setHTML('wx-hours', lines.join('<br>')||'-');
+      }
+      async function runCity(name){
+        setStat('Looking up');
+        try{
+          const {lat,lon,label}=await geocode(name);
+          const d=await getForecast(lat,lon);
+          render(label,d);
+          setStat('-');
+        }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
+      }
+      async function runGeo(){
+        setStat('Requesting location');
+        if(!navigator.geolocation){ setStat('No GPS'); return; }
+        navigator.geolocation.getCurrentPosition(async pos=>{
+          try{
+            const {latitude:lat,longitude:lon}=pos.coords||{};
+            const d=await getForecast(lat,lon);
+            render(`GPS: ${lat.toFixed(3)}, ${lon.toFixed(3)}`, d);
+            setStat('-');
+          }catch(_){ setStat('Error'); }
+        }, _=> setStat('Denied'));
+      }
+      on(c1.querySelector('#wx-go'),'click',()=>{ const v=c1.querySelector('#wx-city').value.trim(); if(v) runCity(v); });
+      on(c1.querySelector('#wx-city'),'keydown',e=>{ if(e.key==='Enter'){ const v=e.currentTarget.value.trim(); if(v) runCity(v);} });
+      on(c1.querySelector('#wx-geo'),'click',runGeo);
+    }
+  });
 
 //
   // -----------------------------
@@ -1562,6 +1641,12 @@ Plugins.register({
       {id:'creator', title:'Info', desc:'App info'},
       {id:'about', title:'About', desc:'Device, browser & environment info'},
       {id:'githubpage', title:'GitHub', desc:'Link to developer GitHub'},
+         { 
+  id: 'weather', 
+  icon: '🥫', 
+  title: 'Weather', 
+  desc: 'Get current weather & 6 hour forecast' 
+},
   {id:'chat', title:'Chat', desc:'Real-time chat'},
   { id:'cryptoprice', title:'Crypto Price', desc:'Lookup by ticker or name (Gecko → Kraken fallback)' },
    { 
@@ -1570,6 +1655,8 @@ Plugins.register({
   title: 'Food Facts', 
   desc: 'Scan barcodes or search food data with OpenFoodFacts (allergens, nutrition, palm oil)' 
 },
+
+
 
       
     ];
