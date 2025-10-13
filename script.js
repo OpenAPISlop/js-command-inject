@@ -405,84 +405,250 @@ tMenu.setAttribute('aria-selected','false');
     }
   });
 
-  
+  // --- Chat Plugin (Menu panel) ---
+// Configure these two:
+const CHAT_API = 'https://BillyGPT.com/chat.php';  // <— point at your PHP file
+const USERNAME_OVERRIDE = ''; // <— set to e.g. 'HaloEagle17' to force a fixed name; leave '' to auto-generate every time
 
-  Plugins.register({
-    id:'weather', title:'Weather',
-    mount(root,{Services}){
-      const ui=E('div',{className:'grid'});
-      const c1=E('div',{className:'card'});
-      c1.innerHTML=`
-        <b>Lookup</b>
-        <div class="muted" style="margin:.4rem 0">City (e.g. "Chicago") or use GPS</div>
-        <div style="display:flex;gap:.5rem">
-          <input id="wx-city" class="inp" placeholder="City">
-          <button id="wx-go" class="run">Fetch</button>
-        </div>
-        <div style="display:flex;gap:.5rem;margin-top:.5rem">
-          <button id="wx-geo" class="run">Use GPS</button>
-          <span class="muted" id="wx-status" style="align-self:center">-</span>
-        </div>`;
-      const c2=E('div',{className:'card'}); c2.innerHTML = `<b>Current</b><div id="wx-current" class="muted">-</div>`;
-      const c3=E('div',{className:'card'}); c3.innerHTML = `<b>Next 6 hours</b><div id="wx-hours" class="muted">-</div>`;
-      ui.append(c1,c2,c3); root.append(ui);
+Plugins.register({
+  id: 'chat',
+  title: 'Chat',
+  mount(root, { Services, esc, E }) {
+    // ----- Style + UI -----
+// fixed-size container so chat stays visible without scrolling the menu
+const ui = E('div', { 
+  className: 'grid', 
+  style: 'height:420px;max-height:420px;overflow:hidden;display:flex;flex-direction:column;'
+});
+const card = E('div', { 
+  className: 'card', 
+  style: 'flex:1;display:flex;flex-direction:column;overflow:hidden;'
+});
+card.innerHTML = `
+  <b>Mini Chat</b>
+  <div class="muted" style="margin:.35rem 0">
+    Type a message and hit Send. A name is assigned each time (or override in JS).
+  </div>
+  <div id="mc-you" class="muted" style="margin:.35rem 0">You are: …</div>
+  <div id="mc-log"
+       style="flex:1;overflow:auto;border:1px solid #1a2942;
+              border-radius:10px;padding:.5rem;background:#0b1220;">
+  </div>
+  <div style="display:flex;gap:.5rem;margin-top:.6rem;">
+    <input id="mc-msg" class="inp" placeholder="message…" style="flex:1;">
+    <button id="mc-send" class="run">Send</button>
+  </div>
+`;
+ui.append(card);
+root.append(ui);
 
-      const set=(id,v)=>{ const el=D.getElementById(id); if(el) el.textContent=v; };
-      const setHTML=(id,html)=>{ const el=D.getElementById(id); if(el) el.innerHTML=html; };
-      const setStat=msg=>set('wx-status',msg);
-      const fmtTempC=x=> (x!=null?Math.round(x):'-')+' °C';
 
-      async function geocode(name){
-        const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`;
-        const j=await Services.httpJSON(url);
-        const r=j && j.results && j.results[0];
-        if(!r) throw new Error('City not found');
-        return {lat:r.latitude, lon:r.longitude, label:`${r.name}${r.admin1?(', '+r.admin1):''}, ${r.country_code||''}`};
-      }
-      async function getForecast(lat,lon){
-        const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
-        return Services.httpJSON(url);
-      }
-      function render(label, d){
-        const cur=d.current_weather||{}, hours=d.hourly||{};
-        setHTML('wx-current', `${label}<br>Now: ${fmtTempC(cur.temperature)} • Wind ${cur.windspeed??'-'} km/h`);
-        const lines=[];
-        if (hours.time && hours.temperature_2m){
-          for(let i=0;i<6 && i<hours.time.length;i++){
-            const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
-            const temp=hours.temperature_2m[i];
-            const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
-            lines.push(`${t} - ${fmtTempC(temp)} • ${pr} mm`);
-          }
-        }
-        setHTML('wx-hours', lines.join('<br>')||'-');
-      }
-      async function runCity(name){
-        setStat('Looking up');
-        try{
-          const {lat,lon,label}=await geocode(name);
-          const d=await getForecast(lat,lon);
-          render(label,d);
-          setStat('-');
-        }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
-      }
-      async function runGeo(){
-        setStat('Requesting location');
-        if(!navigator.geolocation){ setStat('No GPS'); return; }
-        navigator.geolocation.getCurrentPosition(async pos=>{
-          try{
-            const {latitude:lat,longitude:lon}=pos.coords||{};
-            const d=await getForecast(lat,lon);
-            render(`GPS: ${lat.toFixed(3)}, ${lon.toFixed(3)}`, d);
-            setStat('-');
-          }catch(_){ setStat('Error'); }
-        }, _=> setStat('Denied'));
-      }
-      on(c1.querySelector('#wx-go'),'click',()=>{ const v=c1.querySelector('#wx-city').value.trim(); if(v) runCity(v); });
-      on(c1.querySelector('#wx-city'),'keydown',e=>{ if(e.key==='Enter'){ const v=e.currentTarget.value.trim(); if(v) runCity(v);} });
-      on(c1.querySelector('#wx-geo'),'click',runGeo);
+    const logEl = card.querySelector('#mc-log');
+    const youEl = card.querySelector('#mc-you');
+    const msgEl = card.querySelector('#mc-msg');
+    const sendBtn = card.querySelector('#mc-send');
+
+    // ----- Name assignment -----
+const ADJ = [
+  'Dank', 'Epic', 'Spicy', 'Salty', 'Radical', 'Major', 'Classic', 'Vintage',
+  'OG', 'Retro', 'Mighty', 'Grumpy', 'Nyan', 'Cheeky', 'Pepe', 'Forever',
+  'Over9000', 'Troll', 'Doge', 'Fail', 'Keyboard', 'Double', 'Rickrolled'
+];
+
+const NNS = [
+  'Cat', 'Doggo', 'Llama', 'Hamster', 'Turtle', 'Shibe', 'Pigeon', 'Duck',
+  'Potato', 'Muffin', 'Narwhal', 'Boi', 'Bacon', 'Penguin', 'Taco', 'Raptor',
+  'Unicorn', 'KeyboardCat', 'Overlord', 'Nyan', 'Hamsterdance', 'Badger', 'Yee'
+];
+
+    function rand(a){ return a[(Math.random()*a.length)|0]; }
+    function xboxName(){
+      const n = (Math.random()*899)|0 + 100; // 100-998
+      return `${rand(ADJ)} ${rand(NNS)} ${n}`;
     }
-  });
+
+    const myName = (USERNAME_OVERRIDE && String(USERNAME_OVERRIDE).trim()) || xboxName();
+    youEl.textContent = `You are: ${myName}`;
+    // Notify the user (toast-like)
+    try {
+      const tip = document.createElement('div');
+      tip.id = 'nova-toast';
+      tip.textContent = `Assigned chat name: ${myName}`;
+      document.body.appendChild(tip);
+      setTimeout(() => tip.remove(), 1500);
+    } catch (_) {}
+
+    // ----- Helpers -----
+    function rowHTML(m){
+      const who = esc(m.name || 'anon');
+      const text = esc(m.text || '');
+      const when = new Date(m.ts || Date.now()).toLocaleTimeString();
+      const mine = who.toLowerCase() === myName.toLowerCase();
+      const color = mine ? '#a5cfff' : '#d1e2ff';
+      return `<div class="mc-row" style="margin:.35rem 0;color:${color}">
+        <b>${who}</b> <small style="opacity:.7">${when}</small><br>${text}
+      </div>`;
+    }
+    function atBottom(){
+      return Math.abs((logEl.scrollTop + logEl.clientHeight) - logEl.scrollHeight) < 6;
+    }
+    function scrollToBottom(){
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function httpJSON(url, opts = {}){
+      const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json' }});
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    let since = 0;
+    let polling = false;
+    let alive = true;
+
+    async function poll(){
+      if (!alive || polling) return;
+      polling = true;
+      try{
+        const data = await httpJSON(CHAT_API + (since ? ('?since='+encodeURIComponent(since)) : ''));
+        if (Array.isArray(data) && data.length){
+          const wasBottom = atBottom();
+          logEl.insertAdjacentHTML('beforeend', data.map(rowHTML).join(''));
+          since = Math.max(since, ...data.map(m => m.ts || 0));
+          if (wasBottom) scrollToBottom();
+        }
+      }catch(e){
+        // optionally surface error
+        // console.warn('[chat poll]', e);
+      }finally{
+        polling = false;
+        if (alive) setTimeout(poll, 1500);
+      }
+    }
+
+    async function send(){
+      const text = (msgEl.value || '').trim();
+      if (!text) return;
+      msgEl.value = '';
+      try{
+        await httpJSON(CHAT_API, { method:'POST', body: JSON.stringify({ name: myName, text }) });
+        setTimeout(poll, 50);
+      }catch(e){
+        try{
+          const tip = document.createElement('div');
+          tip.id = 'nova-toast';
+          tip.textContent = 'Send failed (check CHAT_API / CORS)';
+          document.body.appendChild(tip);
+          setTimeout(() => tip.remove(), 1500);
+        }catch(_){}
+      }
+    }
+
+    sendBtn.addEventListener('click', send);
+    msgEl.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') send(); });
+
+    // initial load + start polling
+    (async function init(){
+      try{
+        const data = await httpJSON(CHAT_API);
+        if (Array.isArray(data) && data.length){
+          logEl.innerHTML = data.map(rowHTML).join('');
+          since = Math.max(0, ...data.map(m => m.ts || 0));
+          scrollToBottom();
+        }
+      }catch(_){}
+      poll();
+    })();
+
+    // cleanup when panel is destroyed (Menu Back or Close)
+    const observer = new MutationObserver(()=>{
+      if (!root.isConnected) { alive = false; observer.disconnect(); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+});
+
+
+Plugins.register({
+  id:'weather', title:'Weather',
+  mount(root,{Services}){
+    const ui=E('div',{className:'grid'});
+    const c1=E('div',{className:'card'});
+    c1.innerHTML=`
+      <b>Lookup</b>
+      <div class="muted" style="margin:.4rem 0">City (e.g. "Chicago") or use GPS</div>
+      <div style="display:flex;gap:.5rem">
+        <input id="wx-city" class="inp" placeholder="City">
+        <button id="wx-go" class="run">Fetch</button>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem">
+        <button id="wx-geo" class="run">Use GPS</button>
+        <span class="muted" id="wx-status" style="align-self:center">-</span>
+      </div>`;
+    const c2=E('div',{className:'card'}); c2.innerHTML = `<b>Current</b><div id="wx-current" class="muted">-</div>`;
+    const c3=E('div',{className:'card'}); c3.innerHTML = `<b>Next 6 hours</b><div id="wx-hours" class="muted">-</div>`;
+    ui.append(c1,c2,c3); root.append(ui);
+
+    const set=(id,v)=>{ const el=D.getElementById(id); if(el) el.textContent=v; };
+    const setHTML=(id,html)=>{ const el=D.getElementById(id); if(el) el.innerHTML=html; };
+    const setStat=msg=>set('wx-status',msg);
+
+    // >>> Force Fahrenheit in the menu <<<
+    const preferF = true;
+    const fmtTemp = x => (x!=null ? Math.round(preferF ? (x*9)/5 + 32 : x) : '-') + (preferF ? ' °F' : ' °C');
+
+    async function geocode(name){
+      const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`;
+      const j=await Services.httpJSON(url);
+      const r=j && j.results && j.results[0];
+      if(!r) throw new Error('City not found');
+      return {lat:r.latitude, lon:r.longitude, label:`${r.name}${r.admin1?(', '+r.admin1):''}, ${r.country_code||''}`};
+    }
+    async function getForecast(lat,lon){
+      const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation`;
+      return Services.httpJSON(url);
+    }
+    function render(label, d){
+      const cur=d.current_weather||{}, hours=d.hourly||{};
+      setHTML('wx-current', `${label}<br>Now: ${fmtTemp(cur.temperature)} • Wind ${cur.windspeed??'-'} km/h`);
+      const lines=[];
+      if (hours.time && hours.temperature_2m){
+        for(let i=0;i<6 && i<hours.time.length;i++){
+          const t=(hours.time[i].split('T')[1]||hours.time[i]).slice(0,5);
+          const temp=hours.temperature_2m[i];
+          const pr=(hours.precipitation && hours.precipitation[i]!=null)?hours.precipitation[i]:0;
+          lines.push(`${t} - ${fmtTemp(temp)} • ${pr} mm`);
+        }
+      }
+      setHTML('wx-hours', lines.join('<br>')||'-');
+    }
+    async function runCity(name){
+      setStat('Looking up');
+      try{
+        const {lat,lon,label}=await geocode(name);
+        const d=await getForecast(lat,lon);
+        render(label,d);
+        setStat('-');
+      }catch(e){ setStat('Error'); set('wx-current','-'); set('wx-hours','-'); }
+    }
+    async function runGeo(){
+      setStat('Requesting location');
+      if(!navigator.geolocation){ setStat('No GPS'); return; }
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        try{
+          const {latitude:lat,longitude:lon}=pos.coords||{};
+          const d=await getForecast(lat,lon);
+          render(`GPS: ${lat.toFixed(3)}, ${lon.toFixed(3)}`, d);
+          setStat('-');
+        }catch(_){ setStat('Error'); }
+      }, _=> setStat('Denied'));
+    }
+    on(c1.querySelector('#wx-go'),'click',()=>{ const v=c1.querySelector('#wx-city').value.trim(); if(v) runCity(v); });
+    on(c1.querySelector('#wx-city'),'keydown',e=>{ if(e.key==='Enter'){ const v=e.currentTarget.value.trim(); if(v) runCity(v);} });
+    on(c1.querySelector('#wx-geo'),'click',runGeo);
+  }
+});
+
 
   // -----------------------------
   // Public API 
@@ -563,7 +729,7 @@ tMenu.setAttribute('aria-selected','false');
       {id:'githubpage', title:'GitHub', desc:'Link to developer GitHub'},
       {id:'commands', title:'Extended Console', desc:'More console-activated helpers'},
       {id:'crypto', title:'Crypto', desc:'Open billygpt.com/dash in a new tab'},
-      {id:'weather', title:'Weather', desc:'Simple weather via Open-Meteo'}
+  {id:'chat', title:'Chat', desc:'Real-time chat'} 
       
     ];
     menuDefs.forEach(m=>{
@@ -622,10 +788,7 @@ function off(){
   // -----------------------------
   async function fetchWeather(q, opts = {}){
     const { hours = 6, units = 'auto' } = opts;
-    const preferF = (()=>{
-      if (units==='f') return true; if (units==='c') return false;
-      const lang=(navigator.language||'').toLowerCase(); return /(^en-us|^en.*-us|\bus\b)/.test(lang);
-    })();
+const preferF = true;
     const toUnit=c=> (c==null?'-': (preferF ? Math.round((c*9)/5+32)+'°F' : Math.round(c)+'°C'));
     const log=(...a)=>console.log('%c[nova][weather]','font-weight:700',...a);
     function parsePlace(s){ const parts=String(s).split(',').map(x=>x.trim()).filter(Boolean); return {name:parts[0]||s,region:parts[1]||'',country:(parts[2]||'').toUpperCase()}; }
