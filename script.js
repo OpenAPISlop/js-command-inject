@@ -1047,16 +1047,7 @@ Plugins.register({
     }
   });
 
-  Plugins.register({
-    id:'commands', title:'Extended Console',
-    mount(root){ const wrap=E('div',{className:'grid'}), card=E('div',{className:'card'});
-      card.innerHTML=`<b>Extended Console</b>
-        <div class="muted" style="margin:.4rem 0">Launches a page with extra JS helpers callable from the console.</div>
-        <button class="run" id="open-cmd">Open Console Utilities Page</button>`;
-      wrap.append(card); root.append(wrap);
-      on(card.querySelector('#open-cmd'),'click',()=>window.open('https://openapislop.github.io/js-command-inject-utility/','_blank','noopener'));
-    }
-  });
+
 
   Plugins.register({
     id:'crypto', title:'Crypto Dashboard',
@@ -1573,7 +1564,6 @@ Plugins.register({
       {id:'githubpage', title:'GitHub', desc:'Link to developer GitHub'},
   {id:'chat', title:'Chat', desc:'Real-time chat'},
   { id:'cryptoprice', title:'Crypto Price', desc:'Lookup by ticker or name (Gecko → Kraken fallback)' },
-        {id:'commands', title:'Extended Console', desc:'More console-activated helpers'},
    { 
   id: 'foodfacts', 
   icon: '🥫', 
