@@ -546,6 +546,11 @@ tMenu.setAttribute('aria-selected','false');
 // API: OpenFoodFacts (no key) — https://world.openfoodfacts.org/data
 // Features: search by name or barcode; live camera scan (native BarcodeDetector → ZXing fallback);
 // Nutri-Score/NOVA; sugar/salt/sat-fat flags; palm-oil detection; user allergen highlights; ingredients shown and highlight matches.
+// --- Food Facts & Allergy Checker (Camera Scan + Ingredients + "Lookup" action) ---
+// API: OpenFoodFacts (no key) — https://world.openfoodfacts.org/data
+// Features: search by name or barcode; live camera scan (BarcodeDetector → ZXing fallback);
+// Nutri-Score/NOVA; sugar/salt/sat-fat flags; palm-oil detection; user allergen highlights;
+// ingredients shown (expandable) with highlighted matches; “Save” replaced with **Lookup**.
 Plugins.register({
   id: 'foodfacts',
   title: 'Food Facts',
@@ -562,7 +567,7 @@ Plugins.register({
       <div style="display:flex;flex-direction:column;gap:.5rem;margin:.35rem 0">
         <input id="ff-q" class="inp" placeholder="e.g., granola bar or 737628064502" style="flex:1">
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button id="ff-go" class="run">Search</button>
+          <button id="ff-go" class="run">Lookup</button>
           <button id="ff-scan" class="run">Scan</button>
         </div>
       </div>
@@ -571,11 +576,16 @@ Plugins.register({
 
     const cardPrefs = E('div', { className: 'card' });
     cardPrefs.innerHTML = `
-      <b>Allergy & Preferences</b>
-      <div class="muted" style="margin:.3rem 0">Comma-separated allergens you want highlighted (e.g. <i>gluten, lactose, peanuts, soy</i>)</div>
+      <b>Ingredients & Keywords</b>
+      <div class="muted" style="margin:.3rem 0">
+        Type ingredients, allergens, or keywords to <i>search</i> products (also used to highlight in ingredient lists).
+      </div>
       <div style="display:flex;flex-direction:column;gap:.5rem">
-        <input id="ff-allergens" class="inp" placeholder="gluten, lactose, peanuts" style="flex:1">
-        <button id="ff-save" class="run">Save</button>
+        <input id="ff-allergens" class="inp" placeholder="gluten, lactose, peanuts, soy" style="flex:1">
+        <button id="ff-lookup" class="run">Lookup</button>
+      </div>
+      <div class="muted" style="margin-top:.35rem;font-size:12px">
+        Tip: Your keywords are remembered locally and used to highlight matches in results.
       </div>
     `;
 
@@ -616,9 +626,12 @@ Plugins.register({
     const scanBadge = cardScan.querySelector('#ff-scan-badge');
 
     const LS_KEY = 'nova_ff_allergens';
-    const getAllergens = () => (localStorage.getItem(LS_KEY) || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-    const setAllergens = v => localStorage.setItem(LS_KEY, v);
+    const getKeys = () => (localStorage.getItem(LS_KEY) || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    const setKeys = v => localStorage.setItem(LS_KEY, v);
+
+    // load saved highlight keywords
     prefEl.value = localStorage.getItem(LS_KEY) || '';
+    prefEl.addEventListener('input', () => setKeys(prefEl.value || ''));
 
     const setStatus = s => { stEl.textContent = s || '-'; };
 
@@ -644,9 +657,9 @@ Plugins.register({
     const pill = (label, value, cls='') =>
       `<span class="muted" style="display:inline-block;border:1px solid #294064;border-radius:999px;padding:.15rem .5rem;margin:.1rem .15rem;background:#0f1a2c;${cls==='bad'?'color:#ff5b6e;':cls==='good'?'color:#22c55e;':''}">${esc(label)}: ${esc(value)}</span>`;
 
-    const highlightAllergens = (ingredientsText, tags, userAllergens) => {
+    const highlightMatches = (ingredientsText, tags, userTerms) => {
       const offs = (tags || []).map(s => s.split(':').pop()).filter(Boolean);
-      const uniq = new Set(offs.concat(userAllergens));
+      const uniq = new Set(offs.concat(userTerms));
       let txt = String(ingredientsText || '');
       uniq.forEach(a => {
         if (!a) return;
@@ -679,16 +692,14 @@ Plugins.register({
       return `<span style="display:inline-block;border-radius:6px;border:1px solid #294064;padding:.15rem .4rem;background:#0f1a2c"><b style="color:${color}">NOVA ${n}</b></span>`;
     };
 
-    // Expandable ingredients (always included; collapses very long lists)
+    // Expandable ingredients block
     const makeIngrHTML = (rawHTML) => {
-      const MAX = 380; // chars
+      const MAX = 380;
       const open = rawHTML.length <= MAX;
       const short = rawHTML.slice(0, MAX);
       const rest = rawHTML.slice(MAX);
       const id = 'ingr_' + Math.random().toString(36).slice(2);
-      if (open) {
-        return `<div class="mc-txt">${rawHTML}</div>`;
-      }
+      if (open) return `<div class="mc-txt">${rawHTML}</div>`;
       return `
         <div class="mc-txt" id="${id}">
           ${short}<span data-more style="display:none">${rest}</span>
@@ -702,7 +713,7 @@ Plugins.register({
       const brand = p.brands || p.brand_owner || '';
       const qty = p.quantity || '';
       const nutr = p.nutriments || {};
-      const uAll = getAllergens();
+      const terms = getKeys();
 
       const sugars = +nutr.sugars_100g;
       const sat = +nutr['saturated-fat_100g'];
@@ -727,11 +738,11 @@ Plugins.register({
         ? `<span class="good" style="margin-left:.25rem">Palm-oil-free</span>`
         : palm.hasPalm ? `<span class="bad" style="margin-left:.25rem">Contains palm oil</span>` : '';
 
-      const allergensLine = (alTags.length || uAll.length)
+      const allergensLine = (alTags.length || terms.length)
         ? `<div style="margin-top:.35rem"><span class="muted">Allergens:</span> ${(alTags.map(a=>`<code>${esc(a.split(':').pop())}</code>`).join(' ') || '-')}</div>`
         : '';
 
-      const highlightedIngr = highlightAllergens(esc(ingr), alTags, uAll);
+      const highlightedIngr = highlightMatches(esc(ingr), alTags, terms);
       const ingrBlock = ingr
         ? `<div style="margin-top:.4rem"><span class="muted">Ingredients:</span> ${makeIngrHTML(highlightedIngr)}</div>`
         : '';
@@ -782,6 +793,8 @@ Plugins.register({
       }
     };
 
+    // Name/keyword search — “fixes the lookup”
+    // Uses OFF search endpoint with simple query; sorts by popularity implicitly.
     const searchByName = async (q) => {
       const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&page_size=20&search_simple=1&action=process&json=1`;
       const j = await ge(url);
@@ -920,7 +933,9 @@ Plugins.register({
     // ---------------- Wire up ----------------
     const goBtn = cardSearch.querySelector('#ff-go');
     const scanBtn = cardSearch.querySelector('#ff-scan');
+    const kwLookupBtn = cardPrefs.querySelector('#ff-lookup');
 
+    // top search box
     goBtn.addEventListener('click', () => {
       const q = (qEl.value || '').trim();
       if (!q) return;
@@ -929,15 +944,22 @@ Plugins.register({
     });
     qEl.addEventListener('keydown', e => { if (e.key === 'Enter') goBtn.click(); });
 
+    // ingredients/keywords card — now a Lookup action
+    kwLookupBtn.addEventListener('click', () => {
+      const q = (prefEl.value || '').trim();
+      if (!q) return;
+      // Save for highlighting and run a name/keywords search
+      setKeys(q);
+      searchByName(q);
+      // Jump to results for immediacy
+      setTimeout(() => {
+        cardResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+    });
+
+    // scan
     scanBtn.addEventListener('click', startScan);
     cardScan.querySelector('#ff-stop').addEventListener('click', stopScanning);
-
-    cardPrefs.querySelector('#ff-save').addEventListener('click', () => {
-      const v = (prefEl.value || '').trim();
-      setAllergens(v);
-      stEl.textContent = 'Saved';
-      setTimeout(() => setStatus('-'), 900);
-    });
 
     // Clean up if panel is removed
     const obs = new MutationObserver(() => {
@@ -962,6 +984,7 @@ Plugins.register({
     });
   }
 });
+
 
 
 //
