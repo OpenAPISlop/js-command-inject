@@ -405,6 +405,8 @@ tMenu.setAttribute('aria-selected','false');
     }
   });
 
+  
+
   Plugins.register({
     id:'weather', title:'Weather',
     mount(root,{Services}){
@@ -562,6 +564,7 @@ tMenu.setAttribute('aria-selected','false');
       {id:'commands', title:'Extended Console', desc:'More console-activated helpers'},
       {id:'crypto', title:'Crypto', desc:'Open billygpt.com/dash in a new tab'},
       {id:'weather', title:'Weather', desc:'Simple weather via Open-Meteo'}
+      
     ];
     menuDefs.forEach(m=>{
       const def=Plugins.get(m.id);
@@ -572,9 +575,11 @@ tMenu.setAttribute('aria-selected','false');
     (function(){ const btn=U.head.querySelector('.t[data-tab="menu"]'); if(btn) btn.click(); })();
 
     // show/hide overlay via floating button
-    U.root.style.display='flex';
-    try{ U.btn.style.display='none'; }catch(_){}
-    U.btn.onclick=()=>{const hide=U.root.style.display!=='none'; U.root.style.display=hide?'none':'flex'; U.btn.style.display=hide?'inline-block':'none';};
+// show/hide overlay via floating button (robust: remount if root missing)
+// show/hide state set here; click logic lives in the global handler below
+U.root.style.display = 'flex';
+try { U.btn.style.display = 'none'; } catch(_) {}
+
 
     // close/unmount
     U.close.onclick=off;
@@ -591,16 +596,26 @@ tMenu.setAttribute('aria-selected','false');
   // -----------------------------
   // Unmount / cleanup
   // -----------------------------
-  function off(){
-    try{ Nova.__unmount && Nova.__unmount(); }catch(_){}
-    restoreVP();
-    try{ document.getElementById(SID)?.remove(); }catch(_){}
-    try{ document.getElementById(RID)?.remove(); }catch(_){}
-    try{ const b=document.getElementById(BID); if(b){ b.style.display=''; } }catch(_){}
-    Nova.__mounted=false;
-    delete window.nova;
-    try{ console.log('%cnova off (restored)','font:600 12px ui-monospace'); }catch(_){}
-  }
+function off(){
+  try { Nova.__unmount && Nova.__unmount(); } catch(_) {}
+  restoreVP();
+
+  // Keep stylesheet so #nova-btn keeps its fixed position and styles
+  // (Do NOT remove document.getElementById(SID))
+
+  try { document.getElementById(RID)?.remove(); } catch(_) {}
+
+  try {
+    const b = document.getElementById(BID);
+    if (b) b.style.display = 'inline-block';
+  } catch(_) {}
+
+  Nova.__mounted = false;
+  // Do NOT delete window.nova; global click handler still references mount()
+  try { console.log('%cnova off (restored)','font:600 12px ui-monospace'); } catch(_) {}
+}
+
+
 
   // -----------------------------
   // Extra helpers kept public (console-usable)
