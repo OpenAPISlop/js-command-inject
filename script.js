@@ -590,7 +590,7 @@ try { U.btn.style.display = 'none'; } catch(_) {}
       try{ unNet&&unNet(); }catch(_){}
     };
 
-    try{ console.log('%cnova v1.0 mounted (modular)','font:600 12px ui-monospace'); }catch(_){}
+    try{ console.log('oi'); }catch(_){}
   }
 
   // -----------------------------
