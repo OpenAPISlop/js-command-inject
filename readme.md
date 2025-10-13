@@ -22,6 +22,8 @@ Nova gives you a minimal UI, a live console mirror, simple network logging, and 
 
 ## 🔧 Quick Install — Bookmarklet (Recommended)
 
+NOTE: This can not be launched on GitHub (You can launch this almost anywhere else)
+
 Create a bookmark named **“Nova Console”** and paste this into the **URL** field:
 
 ```javascript
