@@ -168,6 +168,68 @@ html{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
     (document.head||document.documentElement).appendChild(s);
   }
 
+//inject css for full screen plugin lab preview
+/* -------- Full-screen overlay styling: dual-scope helper -------- */
+(function(){
+  const STYLE_ID = 'nova-style';
+  const ROOT_SEL = '#nova-root';
+  const OVERLAY_SEL = '#pl-overlay';
+
+  function dualScopeCSS(cssText) {
+    // Replace every occurrence of "#nova-root" that appears as a selector anchor
+    // with ":where(#nova-root, #pl-overlay)" so all existing rules apply to both.
+    // Keep it conservative to avoid mangling URLs etc.
+    return cssText.replaceAll(ROOT_SEL, `:where(${ROOT_SEL}, ${OVERLAY_SEL})`);
+  }
+
+  function injectMinimalOverlayCSS() {
+    // In case the main stylesheet isn't present for some reason.
+    const s = document.createElement('style');
+    s.setAttribute('data-pl-overlay-min', '1');
+    s.textContent = `
+      ${OVERLAY_SEL}{
+        position:fixed;inset:0;z-index:2147483646;
+        background:rgba(8,12,18,.96);color:#e6eefb;
+        font:15px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        -webkit-font-smoothing:antialiased; text-size-adjust:100%;
+        padding:12px env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 12px) env(safe-area-inset-left);
+      }
+      ${OVERLAY_SEL} .card{border:1px solid #1a2942;border-radius:12px;padding:.65rem;background:#0b1220}
+      ${OVERLAY_SEL} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.65rem;padding:.65rem .8rem}
+      ${OVERLAY_SEL} .run{background:#0f1a2c;border:1px solid #294064;border-radius:10px;padding:.6rem .85rem;cursor:pointer}
+      ${OVERLAY_SEL} .inp{background:#0b1220;border:1px solid #294064;border-radius:10px;padding:.7rem .8rem}
+      ${OVERLAY_SEL} .muted{opacity:.8}
+    `;
+    (document.head || document.documentElement).appendChild(s);
+  }
+
+  function ensureOverlayStyles() {
+    const styleTag = document.getElementById(STYLE_ID);
+    if (!styleTag) { injectMinimalOverlayCSS(); return; }
+
+    // Only transform once
+    if (styleTag.getAttribute('data-dualscoped') === '1') return;
+
+    try {
+      const original = styleTag.textContent || '';
+      // Skip if already dual-scoped
+      if (original.includes(`:where(${ROOT_SEL}, ${OVERLAY_SEL})`)) {
+        styleTag.setAttribute('data-dualscoped','1');
+        return;
+      }
+      styleTag.textContent = dualScopeCSS(original);
+      styleTag.setAttribute('data-dualscoped','1');
+    } catch {
+      // As a safety net, add a minimal overlay CSS block
+      injectMinimalOverlayCSS();
+    }
+  }
+
+  // Expose a single call for your Plugin Lab overlay code
+  window.ensureOverlayStyles = ensureOverlayStyles;
+})();
+
+
   // -----------------------------
   // Viewport lock
   // -----------------------------
@@ -549,7 +611,385 @@ tMenu.setAttribute('aria-selected','false');
 // --- Food Facts & Allergy Checker (Camera Scan + Ingredients + "Lookup" action) ---
 // API: OpenFoodFacts (no key) — https://world.openfoodfacts.org/data
 // Features: search by name or barcode; live camera scan (BarcodeDetector → ZXing fallback);
-// Nutri-Score/NOVA; sugar/salt/sat-fat flags; palm-oil detection; user allergen highlights;
+// Nutri-Score/NOVA; sugar/salt/sat-fat flags; palm-oil detection; user 
+
+
+// --- Shadow DOM scoped mount helper (fully isolates styles) ---
+function novaScopedMount(hostEl, opts = {}) {
+  const host = document.createElement('div');
+  hostEl.append(host);
+  const shadow = host.attachShadow({ mode: 'open' });
+
+  const css = `
+/* ===== Nova Scoped Base (reset-ish) ===== */
+:host, :host * { box-sizing: border-box; }
+:host {
+  --bg:#0b1220; --bg-soft:#0e1626; --ink:#e6eefb; --muted:#9fb2c8;
+  --stroke:#1a2942; --btn:#0f1a2c; --btn-stroke:#294064; --good:#22c55e; --bad:#ff5b6e;
+  --radius:12px; --radius-sm:10px;
+  color-scheme: dark;
+  font: 15px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+
+/* Reset the most common inherited bits from host page */
+:host { color: var(--ink); }
+*, *:before, *:after { margin:0; padding:0; border:0; }
+button, input, textarea { font: inherit; color: inherit; background: none; border: none; }
+a { color: inherit; text-decoration: none; }
+
+/* Container */
+.nova-scope { background: transparent; color: var(--ink); }
+
+/* Layout */
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:.65rem; padding:.65rem .8rem; }
+.card { border:1px solid var(--stroke); border-radius:var(--radius); padding:.65rem; background:var(--bg); }
+.muted { color: var(--muted); opacity:.9; }
+
+/* Controls */
+.inp {
+  width:100%;
+  background:#0b1220;
+  border:1px solid var(--btn-stroke);
+  border-radius:var(--radius-sm);
+  padding:.7rem .8rem;
+  color:var(--ink);
+  outline:none;
+}
+.inp::placeholder { color:#a5cfff; opacity:.6; }
+
+.run {
+  background:var(--btn);
+  border:1px solid var(--btn-stroke);
+  border-radius:var(--radius-sm);
+  padding:.6rem .9rem;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.run:active { transform: translateY(1px); }
+
+/* Utility */
+.row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.good { color: var(--good); }
+.bad  { color: var(--bad); }
+
+/* Prevent horizontal scroll surprises */
+.wrap { overflow:hidden; }
+  ` + (opts.extraCSS || '');
+
+  const style = document.createElement('style');
+  style.textContent = css;
+  shadow.append(style);
+
+  const root = document.createElement('div');
+  root.className = 'nova-scope wrap';
+  shadow.append(root);
+
+  // Element factory that defaults to Shadow DOM
+  const E = (tag, props = {}) => {
+    const el = document.createElement(tag);
+    if (props) Object.assign(el, props);
+    return el;
+  };
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  return { shadow, root, E, esc };
+}
+
+
+
+
+//next plugin
+
+
+
+
+Plugins.register({
+  id: 'plugincreator',
+  title: 'Local Plugin registrar',
+  async mount(root, ctx = {}) {
+    // Scoped UI (Shadow DOM)
+    const { root: S, E, esc } = novaScopedMount(root);
+
+    // ctx fallbacks
+    const Services = ctx.Services || { httpJSON: (u,o)=> (window.fetch||fetch)(u,o).then(r=>r.json()) };
+    const on = ctx.on || ((el,ev,fn,opt)=>{ if(!el) return ()=>{}; el.addEventListener(ev,fn,opt); return ()=>el.removeEventListener(ev,fn,opt); });
+
+    const LS_KEY = 'nova_user_plugins'; // [{ id, title, code }]
+
+    // UI
+    const ui = E('div', { className:'grid' });
+
+    const cardEditor = E('div', { className:'card' });
+    cardEditor.innerHTML = `
+      <b>Import</b>
+      <div class="muted" style="margin:.35rem 0">
+        Paste a plugin below to register it locally.
+      </div>
+      <textarea id="pc-code" class="inp" style="max-height:40px;min-height:40px;font-family:ui-monospace,Menlo,Consolas,monospace;"></textarea>
+      <div class="row" style="margin-top:.5rem">
+        <button id="pc-save" class="run">Save & Add to Menu</button>
+        <button id="pc-run" class="run">Register only</button>
+        <button id="pc-load" class="run">Load All</button>
+        <button id="pc-clear" class="run">Clear</button>
+      </div>
+      <div id="pc-status" class="muted" style="margin-top:.35rem">Ready.</div>
+    `;
+
+    const cardList = E('div', { className:'card' });
+    cardList.innerHTML = `
+      <b>Saved Plugins</b>
+      <div id="pc-list" class="muted" style="margin:.35rem 0">None saved.</div>
+      <div class="row">
+        <button id="pc-load-all" class="run">Load All</button>
+        <button id="pc-nuke" class="run">Delete All</button>
+      </div>
+    `;
+
+    ui.append(cardEditor, cardList);
+    S.append(ui);
+
+    // refs
+    const codeEl    = S.querySelector('#pc-code');
+    const statusEl  = S.querySelector('#pc-status');
+    const listEl    = S.querySelector('#pc-list');
+    const btnSave   = S.querySelector('#pc-save');
+    const btnRun    = S.querySelector('#pc-run');
+    const btnLoad   = S.querySelector('#pc-load');
+    const btnClear  = S.querySelector('#pc-clear');
+    const btnLoadAll= S.querySelector('#pc-load-all');
+    const btnNuke   = S.querySelector('#pc-nuke');
+
+    const setStatus = t => { statusEl.textContent = t || '—'; };
+
+    // storage
+    const readStore  = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } };
+    const writeStore = arr => localStorage.setItem(LS_KEY, JSON.stringify(arr));
+    const upsert     = (arr, rec) => { const i = arr.findIndex(x=>x.id===rec.id); if (i>=0) arr[i]=rec; else arr.push(rec); return arr; };
+
+    // shell helpers
+    function getShell(){
+      const root = document.getElementById('nova-root');
+      if (!root) return null;
+      const menuList   = root.querySelector('.menu-list');
+      const panelHost  = root.querySelector('.panel');
+      const panelBody  = panelHost ? panelHost.querySelector('.scroller') : null;
+      const crumbTitle = root.querySelector('.crumbs > div');
+      const backBtn    = root.querySelector('.crumbs .back');
+      return { root, menuList, panelHost, panelBody, crumbTitle, backBtn };
+    }
+    function ensureMenuItem(def){
+      const shell = getShell();
+      if (!shell || !shell.menuList) return false;
+      if (shell.menuList.querySelector(`[data-pc-item="${CSS.escape(def.id||'')}"]`)) return true;
+      const row = document.createElement('div');
+      row.className='menu-item'; row.setAttribute('data-pc-item', def.id||'');
+      const left = document.createElement('div');
+      left.innerHTML = `<div><b>${esc(def.title||def.id)}</b></div><div class="muted" style="font-size:13px">User plugin</div>`;
+      const btn = document.createElement('button'); btn.textContent='Open';
+      btn.addEventListener('click', ()=>openPanel(def.id));
+      row.append(left, btn); shell.menuList.append(row);
+      return true;
+    }
+    function openPanel(id){
+      const shell = getShell();
+      const def = Plugins.get(id);
+      if (!shell || !shell.panelHost || !shell.panelBody || !def) { setStatus('Cannot open (shell missing).'); return; }
+      shell.menuList.style.display='none'; shell.panelHost.style.display='flex'; shell.panelBody.innerHTML='';
+      if (shell.crumbTitle) shell.crumbTitle.textContent = def.title || id;
+      try { def.mount(shell.panelBody, { E, esc, Services, on }); }
+      catch (err) {
+        const box = document.createElement('div');
+        box.className='bad'; box.style.cssText='padding:.4rem;border:1px solid #4b1f27;border-radius:8px;background:#1a0f12';
+        box.textContent='Mount error: '+(err && err.message || err);
+        shell.panelBody.append(box);
+      }
+      if (shell.backBtn) shell.backBtn.onclick = function(){
+        shell.panelHost.style.display='none'; shell.menuList.style.display='block'; shell.panelBody.innerHTML='';
+      };
+    }
+
+    // evaluator
+    function evalAndCapture(snippet){
+      let captured = null;
+      const shim = { register(def){ captured = def; return { ok:true }; } };
+      // eslint-disable-next-line no-new-func
+      const fn = new Function('Plugins','E','esc','Services','console','on','fetch','document', `${snippet}\n;return true;`);
+      const g = window; const prev = { fetch: g.fetch };
+      try { g.fetch = g.fetch || fetch; fn(shim, E, esc, Services, console, on, g.fetch, document); }
+      finally { g.fetch = prev.fetch; }
+      return captured;
+    }
+
+    // list
+    function renderList(){
+      const store = readStore();
+      if (!store.length) { listEl.innerHTML = 'None saved.'; return; }
+      listEl.innerHTML = store.map(rec => `
+        <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #1a2942;border-radius:10px;padding:.5rem .6rem;margin:.35rem 0;background:#0b1220">
+          <div><b>${esc(rec.title||rec.id)}</b><div class="muted" style="font-size:12px">${esc(rec.id)}</div></div>
+          <div class="row">
+            <button class="run" data-act="open" data-id="${esc(rec.id)}">Open</button>
+            <button class="run" data-act="load" data-id="${esc(rec.id)}">Load</button>
+            <button class="run" data-act="export" data-id="${esc(rec.id)}">Export</button>
+            <button class="run" data-act="delete" data-id="${esc(rec.id)}">Remove</button>
+          </div>
+        </div>
+      `).join('');
+
+      listEl.onclick = (e)=>{
+        const b = e.target.closest('button.run[data-act]');
+        if (!b) return;
+        const id=b.getAttribute('data-id'), act=b.getAttribute('data-act');
+        const store = readStore(); const rec = store.find(x=>x.id===id); if (!rec) return;
+
+        if (act==='load'){
+          try { const def=evalAndCapture(rec.code); if(!def||typeof def.mount!=='function') throw new Error('No mount()');
+            Plugins.register(def); ensureMenuItem(def); setStatus(`Loaded ${def.id}`);
+          } catch(err){ setStatus('Load failed: '+(err&&err.message||err)); }
+        }
+        if (act==='open')  openPanel(id);
+        if (act==='export'){
+          try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([rec.code],{type:'text/plain;charset=utf-8'})); a.download=`${rec.id}.js`; a.click(); URL.revokeObjectURL(a.href); }catch(_){}
+        }
+        if (act==='delete'){ writeStore(store.filter(x=>x.id!==id)); renderList(); setStatus(`Removed ${id}`); }
+      };
+    }
+
+    // actions
+    const doRun = ()=>{
+      const s=(codeEl.value||'').trim(); if(!s) return setStatus('Nothing to register.');
+      try { const def=evalAndCapture(s); if(!def||typeof def.mount!=='function') throw new Error('Snippet didn’t call Plugins.register({...})');
+        Plugins.register(def); ensureMenuItem(def); setStatus(`Registered ${def.id}`);
+      } catch(err){ setStatus('Evaluation failed: '+(err&&err.message||err)); }
+    };
+    const doSave = ()=>{
+      const s=(codeEl.value||'').trim(); if(!s) return setStatus('Nothing to save.');
+      let def; try { def=evalAndCapture(s); if(!def||typeof def.mount!=='function') throw new Error('Snippet didn’t call Plugins.register({...})'); }
+      catch(err){ return setStatus('Evaluation failed: '+(err&&err.message||err)); }
+      writeStore(upsert(readStore(), { id:def.id, title:def.title||def.id, code:s }));
+      renderList();
+      try { Plugins.register(def); ensureMenuItem(def); setStatus(`Saved & added: ${def.id}`); }
+      catch(err){ setStatus('Register failed: '+(err&&err.message||err)); }
+    };
+    const doLoadAll = ()=>{
+      const store=readStore(); if(!store.length) return setStatus('No saved plugins.');
+      let ok=0, fail=0;
+      for(const rec of store){
+        try { const def=evalAndCapture(rec.code); if(!def||typeof def.mount!=='function') throw new Error('No mount()');
+          Plugins.register(def); ensureMenuItem(def); ok++;
+        } catch(_) { fail++; }
+      }
+      setStatus(`Loaded ${ok} plugin(s).${fail?` ${fail} failed.`:''}`);
+    };
+    const doNuke = ()=>{ writeStore([]); renderList(); setStatus('Deleted all saved plugins.'); };
+
+    // wire
+    on(btnRun,'click',doRun);
+    on(btnSave,'click',doSave);
+    on(btnLoad,'click',doLoadAll);
+    on(btnLoadAll,'click',doLoadAll);
+    on(btnClear,'click',()=>{ codeEl.value=''; setStatus('Editor cleared.'); });
+    on(btnNuke,'click',doNuke);
+
+    renderList();
+  }
+});
+
+
+
+
+
+/* =========================
+   Lag Helpers (global Lag)
+   ========================= */
+(function(){
+  // tiny batcher for DOM writes; avoids layout trashing on mobile
+  function rafBatch() {
+    const q = [];
+    let id = 0, scheduled = false;
+    const run = () => {
+      scheduled = false;
+      const jobs = q.splice(0, q.length);
+      for (let i=0;i<jobs.length;i++){ try { jobs[i](); } catch(_){} }
+    };
+    return (fn) => { q.push(fn); if (!scheduled) { scheduled = true; requestAnimationFrame(run); } return ++id; };
+  }
+
+  // throttle utility
+  const throttle = (fn, ms=120) => {
+    let last = 0, t = null, pendingArgs=null, pendingThis=null;
+    const run = () => { last = Date.now(); t = null; fn.apply(pendingThis, pendingArgs); pendingArgs=pendingThis=null; };
+    return function(...args){
+      const now = Date.now();
+      if (now - last >= ms) { last = now; return fn.apply(this, args); }
+      pendingArgs = args; pendingThis = this;
+      if (!t) t = setTimeout(run, ms - (now - last));
+    };
+  };
+
+  // schedule on idle (fallback to setTimeout)
+  const idle = (cb, timeout=200) => {
+    if (window.requestIdleCallback) return requestIdleCallback(cb, { timeout });
+    return setTimeout(cb, Math.min(timeout, 200));
+  };
+
+  // microtask queue (Promise based)
+  const microtask = (fn) => Promise.resolve().then(fn);
+
+  // simple DOM recycler for list items
+  function recycler(tagName='div') {
+    const pool = [];
+    return {
+      take(){ return pool.pop() || document.createElement(tagName); },
+      give(el){ try{ el.remove(); el.textContent=''; el.removeAttribute('style'); }catch(_){} pool.push(el); },
+      size(){ return pool.length; }
+    };
+  }
+
+  // style freezer: toggles will-change to reduce thrash during drags
+  function freezeStyles(el){
+    if (!el) return () => {};
+    const prev = el.style.willChange;
+    el.style.willChange = 'height, transform';
+    return ()=>{ el.style.willChange = prev || ''; };
+  }
+
+  // defer (setTimeout 0)
+  const defer = (fn) => setTimeout(fn, 0);
+
+  // safeTimeout (auto clear on element removal)
+  function safeTimeout(el, fn, ms){
+    const id = setTimeout(()=>{ if (document.contains(el)) fn(); }, ms);
+    return () => clearTimeout(id);
+  }
+
+  // passive event options helper
+  const eventOptionsPassive = { passive:true };
+
+  // basic GC nudge for large arrays
+  function gc(arr){ if (Array.isArray(arr)) arr.length = 0; }
+
+  // expose
+  window.Lag = {
+    rafBatch: rafBatch(),
+    throttle,
+    idle,
+    microtask,
+    recycler,
+    freezeStyles,
+    defer,
+    safeTimeout,
+    eventOptionsPassive,
+    gc
+  };
+})();
+
+
+
+//end plugin 
+
 // ingredients shown (expandable) with highlighted matches; “Save” replaced with **Lookup**.
 Plugins.register({
   id: 'foodfacts',
@@ -1145,312 +1585,10 @@ Plugins.register({
 
 
 
-  Plugins.register({
-    id:'crypto', title:'Crypto Dashboard',
-    mount(root){ const wrap=E('div',{className:'grid'}), card=E('div',{className:'card'});
-      card.innerHTML=`<b>Crypto Dashboard</b>
-        <div class="muted" style="margin:.4rem 0">Launches billygpt.com/dash in a new tab.</div>
-        <button class="run" id="open-dash">Open Dashboard</button>`;
-      wrap.append(card); root.append(wrap);
-      on(card.querySelector('#open-dash'),'click',()=>window.open('https://billygpt.com/dash','_blank','noopener'));
-    }
-  });
 
 
 
 
-Plugins.register({
-  id: 'cryptoprice',
-  title: 'Crypto Price Lookup',
-  mount(root, { Services, esc, E }) {
-    // ---------- UI ----------
-    const ui = E('div', { className:'grid' });
-    const card = E('div', { className:'card' });
-    card.innerHTML = `
-      <b>Crypto Price Lookup</b>
-      <div style="display:flex;gap:.5rem;margin:.4rem 0">
-        <input id="cp-q" class="inp" placeholder="BTC, bitcoin, BTC/USD…" style="flex:1">
-        <button id="cp-go" class="run">Lookup</button>
-      </div>
-      <div id="cp-status" class="muted" style="margin:.25rem 0">-</div>
-      <div id="cp-out" style="margin-top:.5rem"></div>
-    `;
-    ui.append(card);
-    root.append(ui);
-
-    // ---------- DOM refs ----------
-    const qEl = card.querySelector('#cp-q');
-    const outEl = card.querySelector('#cp-out');
-    const stEl = card.querySelector('#cp-status');
-    const goBtn = card.querySelector('#cp-go');
-
-    // ---------- Helpers ----------
-    const setStatus = (s) => { stEl.textContent = s; };
-    const setHTML = (html) => { outEl.innerHTML = html; };
-
-    // Formatters
-    const fmtUSD = (n) => (n==null || !isFinite(n)) ? '-' : ('$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 8 }));
-
-    // ---------- Primary: CoinGecko ----------
-    async function geckoSearch(query){
-      // https://api.coingecko.com/api/v3/search?query=...
-      const s = await Services.httpJSON('https://api.coingecko.com/api/v3/search?query=' + encodeURIComponent(query));
-      const coins = (s && s.coins) || [];
-      if (!coins.length) return null;
-
-      const q = String(query).trim().toLowerCase();
-      // Prefer exact symbol match, then exact name, else first
-      let best = coins.find(c => (c.symbol||'').toLowerCase() === q)
-              || coins.find(c => (c.name||'').toLowerCase() === q)
-              || coins[0];
-
-      return best ? { id: best.id, name: best.name, symbol: (best.symbol||'').toUpperCase() } : null;
-    }
-
-    async function geckoPriceUSD(id){
-      // https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true
-      const url = 'https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(id) + '&vs_currencies=usd&include_24hr_change=true';
-      const j = await Services.httpJSON(url);
-      const rec = j && j[id];
-      if (!rec) return null;
-      return { usd: +rec.usd, change24h: (typeof rec.usd_24h_change === 'number' ? rec.usd_24h_change : null) };
-    }
-
-    async function tryCoinGecko(input){
-      const coin = await geckoSearch(input);
-      if (!coin) return null;
-      const px = await geckoPriceUSD(coin.id);
-      if (!px) return null;
-      return {
-        source: 'CoinGecko',
-        name: coin.name,
-        symbol: coin.symbol,
-        usd: px.usd,
-        change24h: px.change24h
-      };
-    }
-
-    // ---------- Secondary: Kraken ----------
-    // Kraken uses quirky pairs (XXBTZUSD, XETHZUSD). We'll try a handful of candidates.
-    const niceSym = (kr) => (kr||'').replace(/^[XZ]/,'').toUpperCase().replace(/^XBT$/,'BTC').replace(/^XETH$/,'ETH');
-    const toKrBase = (b) => (b.toUpperCase()==='BTC' ? 'XXBT' : b.toUpperCase()==='ETH' ? 'XETH' : b.toUpperCase());
-    const toKrQuote = (q) => (q.toUpperCase()==='USD' ? 'ZUSD' : q.toUpperCase()==='EUR' ? 'ZEUR' : q.toUpperCase());
-
-    function parsePairish(s){
-      const m = String(s).trim().toUpperCase().match(/^([A-Z0-9]+)\s*[\/\-:]\s*([A-Z0-9]+)$/);
-      return m ? { base:m[1], quote:m[2] } : null;
-    }
-
-    function krCandidates(input){
-      const out = new Set();
-      const pairish = parsePairish(input);
-
-      const preferQuotes = ['USD','USDT','EUR'];
-
-      if (pairish){
-        // Treat as explicit pair
-        const kb = toKrBase(pairish.base);
-        const kq = toKrQuote(pairish.quote);
-        out.add(kb + kq);
-        out.add(niceSym(kb) + niceSym(kq));
-      } else {
-        // Treat as symbol or name; try common bases with USD first
-        const s = String(input).trim().toUpperCase();
-        const bases = (/^BTC$|^BITCOIN$/.test(s)) ? ['XXBT','XBT','BTC']
-                    : (/^ETH$|^ETHEREUM$/.test(s)) ? ['XETH','ETH']
-                    : [s];
-        bases.forEach(b=>{
-          preferQuotes.forEach(q=>{
-            const kq = toKrQuote(q);
-            out.add(toKrBase(b) + kq);
-            out.add(niceSym(toKrBase(b)) + niceSym(kq));
-          });
-        });
-      }
-      return Array.from(out);
-    }
-
-    async function krTicker(pair){
-      // https://api.kraken.com/0/public/Ticker?pair=XXBTZUSD
-      const url = 'https://api.kraken.com/0/public/Ticker?pair=' + encodeURIComponent(pair);
-      const j = await Services.httpJSON(url);
-      const keys = Object.keys((j && j.result) || {});
-      if (!keys.length) return null;
-      const k = keys[0], r = j.result[k] || {};
-      const last = r.c && +r.c[0];
-      const open = +r.o || null;
-      const changePct = (last!=null && open) ? ((last - open)/open*100) : null;
-      // Normalize to display symbol like BTC/USD
-      const display = (k||pair).toUpperCase()
-        .replace(/XXBT|XBT/,'BTC').replace(/XETH/,'ETH').replace(/ZUSD/,'USD').replace(/ZEUR/,'EUR')
-        .replace(/(BTC|ETH)(USD|EUR|USDT)$/,'$1/$2');
-      return { display, last, changePct };
-    }
-
-    async function tryKraken(input){
-      const cand = krCandidates(input);
-      for (const c of cand) {
-        try {
-          const t = await krTicker(c);
-          if (t && isFinite(t.last)) {
-            const [base, quote] = (t.display.includes('/') ? t.display.split('/') : [t.display, 'USD']);
-            return {
-              source: 'Kraken',
-              name: base,      // best-effort
-              symbol: base,    // e.g., BTC
-              usd: quote === 'USD' ? t.last : null, // only USD showcased here
-              change24h: t.changePct
-            };
-          }
-        } catch(_) {}
-      }
-      return null;
-    }
-
-    // ---------- Orchestrator ----------
-    async function lookup(){
-      const q = (qEl.value||'').trim();
-      if (!q) { setStatus('Enter a ticker or name'); return; }
-      setStatus('Looking up on CoinGecko…');
-      setHTML('');
-
-      // First: CoinGecko
-      let res = null;
-      try { res = await tryCoinGecko(q); } catch(_) {}
-      if (!res) {
-        setStatus('Not found on CoinGecko. Trying Kraken…');
-        try { res = await tryKraken(q); } catch(_) {}
-      }
-
-      if (!res) {
-        setStatus('No price found on either source.');
-        setHTML(`<div class="bad">No result for <b>${esc(q)}</b>.</div>`);
-        return;
-      }
-
-      setStatus(`OK from ${res.source}`);
-      const chg = (typeof res.change24h === 'number') ? (res.change24h>0?`<span class="good">+${res.change24h.toFixed(2)}%</span>`:`<span class="bad">${res.change24h.toFixed(2)}%</span>`) : '-';
-      setHTML(`
-        <div>
-          <div style="font-size:16px;font-weight:700">${esc(res.name || res.symbol || '')} <span class="muted">(${esc(res.symbol || '')})</span></div>
-          <div style="margin-top:.35rem">Price (USD): <b>${fmtUSD(res.usd)}</b></div>
-          <div class="muted" style="margin-top:.2rem">24h change: ${chg}</div>
-          <div class="muted" style="margin-top:.2rem">Source: ${esc(res.source)}</div>
-        </div>
-      `);
-    }
-
-    goBtn.addEventListener('click', lookup);
-    qEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter') lookup(); });
-  }
-});
-
-// expects:
- const CHAT_API='https://billygpt.com/chat.php';
-// const USERNAME_OVERRIDE='';
-
-Plugins.register({
-  id:'chat',
-  title:'Chat',
-  mount(root,{esc,E}){
-    // ===== UI =====
-    const wrap=E('div',{className:'grid mc-wrap'});
-    const chat=E('div',{className:'mc-card'});
-    chat.innerHTML=`
-      <b>Mini Chat</b>
-      <div class="muted mc-top">
-        <span id="mc-you">You are: …</span>
-        <span class="muted">• Name color:</span>
-        <input id="mc-color" type="color" class="mc-color">
-        <button id="mc-color-save" class="run" style="padding:.4rem .6rem">Save</button>
-        <div id="mc-sw" style="display:flex;gap:.25rem">
-          ${['#7dd3fc','#a78bfa','#f472b6','#fca5a5','#fbbf24','#34d399','#60a5fa'].map(c=>`<button class="run" data-c="${c}" style="width:22px;height:22px;padding:0;border-radius:6px;border:1px solid #294064;background:${c}"></button>`).join('')}
-        </div>
-      </div>
-      <div id="mc-log"></div>
-      <div style="display:flex;gap:.5rem">
-        <input id="mc-msg" class="inp" placeholder="message…" style="flex:1;">
-        <button id="mc-send" class="run">Send</button>
-      </div>
-    `;
-    wrap.append(chat); root.append(wrap);
-
-    // ===== Refs =====
-    const logEl=chat.querySelector('#mc-log'), youEl=chat.querySelector('#mc-you');
-    const msgEl=chat.querySelector('#mc-msg'), sendBtn=chat.querySelector('#mc-send');
-    const clrEl=chat.querySelector('#mc-color'), clrSave=chat.querySelector('#mc-color-save'), sw=chat.querySelector('#mc-sw');
-
-    // ===== Identity & colors =====
-    const ADJ=['Dank','Epic','Spicy','Salty','Radical','Major','Classic','Vintage','OG','Retro','Mighty','Grumpy','Nyan','Cheeky','Pepe','Forever','Over9000','Troll','Doge','Fail','Keyboard','Double','Rickrolled'];
-    const NNS=['Cat','Doggo','Llama','Hamster','Turtle','Shibe','Pigeon','Duck','Potato','Muffin','Narwhal','Boi','Bacon','Penguin','Taco','Raptor','Unicorn','KeyboardCat','Overlord','Nyan','Hamsterdance','Badger','Yee'];
-    const rand=a=>a[(Math.random()*a.length)|0];
-    const myName=(USERNAME_OVERRIDE&&String(USERNAME_OVERRIDE).trim())||(`${rand(ADJ)}${rand(NNS)}${((Math.random()*899)|0)+100}`);
-    youEl.textContent=`You are: ${myName}`;
-
-    const keyColor=n=>`nova_user_color_${n}`;
-    const getMyColor=()=>localStorage.getItem(keyColor(myName))||'#a5cfff';
-    const setMyColor=c=>localStorage.setItem(keyColor(myName),c);
-    const hashHue=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*33+s.charCodeAt(i))>>>0;return h%360;};
-    const colorForOther=n=>`hsl(${hashHue(n)},70%,70%)`;
-    clrEl.value=getMyColor();
-    clrSave.onclick=()=>setMyColor(clrEl.value);
-    sw.addEventListener('click',e=>{const b=e.target.closest('button[data-c]'); if(!b) return; clrEl.value=b.dataset.c; setMyColor(b.dataset.c);});
-
-    // ===== Chat core =====
-    const atBottom=()=>Math.abs((logEl.scrollTop+logEl.clientHeight)-logEl.scrollHeight)<6;
-    const scrollToBottom=()=>{logEl.scrollTop=logEl.scrollHeight;};
-    const rowHTML=m=>{
-      const who=esc(m.name||'anon');
-      const when=new Date(m.ts||Date.now()).toLocaleTimeString();
-      const isMe=who.toLowerCase()===myName.toLowerCase();
-      const uColor=isMe?getMyColor():colorForOther(who);
-      const txt=esc(String(m.text||'')); // regular emojis work as-is
-      return `<div class="mc-row">
-        <span class="mc-usr" style="color:${uColor}">${who}</span> <small class="muted">${when}</small><br>
-        <span class="mc-txt">${txt}</span>
-      </div>`;
-    };
-    const httpJSON=async(u,o={})=>{const r=await fetch(u,{...o,headers:{'Content-Type':'application/json'}}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json();};
-
-    let since=0,polling=false,alive=true;
-    async function poll(){
-      if(!alive||polling) return; polling=true;
-      try{
-        const data=await httpJSON(CHAT_API+(since?('?since='+encodeURIComponent(since)):''));
-        if(Array.isArray(data)&&data.length){
-          const keep=atBottom();
-          logEl.insertAdjacentHTML('beforeend', data.map(rowHTML).join(''));
-          since=Math.max(since,...data.map(m=>m.ts||0));
-          if(keep) scrollToBottom();
-        }
-      }catch(_){}
-      finally{polling=false; if(alive) setTimeout(poll,1500);}
-    }
-    async function send(){
-      const text=(msgEl.value||'').trim(); if(!text) return; msgEl.value='';
-      try{await httpJSON(CHAT_API,{method:'POST',body:JSON.stringify({name:myName,text})}); setTimeout(poll,50);}catch(_){}
-    }
-    sendBtn.addEventListener('click',send);
-    msgEl.addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
-
-    // ===== Init =====
-    (async function(){
-      try{
-        const data=await httpJSON(CHAT_API);
-        if(Array.isArray(data)&&data.length){
-          logEl.innerHTML=data.map(rowHTML).join('');
-          since=Math.max(0,...data.map(m=>m.ts||0));
-          scrollToBottom();
-        }
-      }catch(_){}
-      poll();
-    })();
-
-    // ===== Cleanup =====
-    const obs=new MutationObserver(()=>{if(!root.isConnected){alive=false; obs.disconnect();}});
-    obs.observe(document.body,{childList:true,subtree:true});
-  }
-});
 
 
   // -----------------------------
@@ -1536,12 +1674,19 @@ Plugins.register({
   title: 'Weather', 
   desc: 'Get current weather & 6 hour forecast' 
 },
-  { id:'cryptoprice', title:'Crypto Price', desc:'Lookup by ticker or name (Gecko → Kraken fallback)' },
    { 
   id: 'foodfacts', 
   icon: '🥫', 
   title: 'Food Facts', 
   desc: 'Scan barcodes or search food data with OpenFoodFacts (allergens, nutrition, palm oil)' 
+},
+
+
+{ 
+  id: 'plugincreator', 
+  icon: '🥫', 
+  title: 'Plugin registrar', 
+  desc: 'Register plugins locally' 
 },
 
 
