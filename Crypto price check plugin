@@ -1,0 +1,185 @@
+Plugins.register({
+  id: 'cryptoprice',
+  title: 'Crypto Price Lookup',
+  mount(root, { Services, esc, E }) {
+    // ---------- UI ----------
+    const ui = E('div', { className:'grid' });
+    const card = E('div', { className:'card' });
+    card.innerHTML = `
+      <b>Crypto Price Lookup</b>
+      <div style="display:flex;gap:.5rem;margin:.4rem 0">
+        <input id="cp-q" class="inp" placeholder="BTC, bitcoin, BTC/USD…" style="flex:1">
+        <button id="cp-go" class="run">Lookup</button>
+      </div>
+      <div id="cp-status" class="muted" style="margin:.25rem 0">-</div>
+      <div id="cp-out" style="margin-top:.5rem"></div>
+    `;
+    ui.append(card);
+    root.append(ui);
+
+    // ---------- DOM refs ----------
+    const qEl = card.querySelector('#cp-q');
+    const outEl = card.querySelector('#cp-out');
+    const stEl = card.querySelector('#cp-status');
+    const goBtn = card.querySelector('#cp-go');
+
+    // ---------- Helpers ----------
+    const setStatus = (s) => { stEl.textContent = s; };
+    const setHTML = (html) => { outEl.innerHTML = html; };
+
+    // Formatters
+    const fmtUSD = (n) => (n==null || !isFinite(n)) ? '-' : ('$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 8 }));
+
+    // ---------- Primary: CoinGecko ----------
+    async function geckoSearch(query){
+      // https://api.coingecko.com/api/v3/search?query=...
+      const s = await Services.httpJSON('https://api.coingecko.com/api/v3/search?query=' + encodeURIComponent(query));
+      const coins = (s && s.coins) || [];
+      if (!coins.length) return null;
+
+      const q = String(query).trim().toLowerCase();
+      // Prefer exact symbol match, then exact name, else first
+      let best = coins.find(c => (c.symbol||'').toLowerCase() === q)
+              || coins.find(c => (c.name||'').toLowerCase() === q)
+              || coins[0];
+
+      return best ? { id: best.id, name: best.name, symbol: (best.symbol||'').toUpperCase() } : null;
+    }
+
+    async function geckoPriceUSD(id){
+      // https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true
+      const url = 'https://api.coingecko.com/api/v3/simple/price?ids=' + encodeURIComponent(id) + '&vs_currencies=usd&include_24hr_change=true';
+      const j = await Services.httpJSON(url);
+      const rec = j && j[id];
+      if (!rec) return null;
+      return { usd: +rec.usd, change24h: (typeof rec.usd_24h_change === 'number' ? rec.usd_24h_change : null) };
+    }
+
+    async function tryCoinGecko(input){
+      const coin = await geckoSearch(input);
+      if (!coin) return null;
+      const px = await geckoPriceUSD(coin.id);
+      if (!px) return null;
+      return {
+        source: 'CoinGecko',
+        name: coin.name,
+        symbol: coin.symbol,
+        usd: px.usd,
+        change24h: px.change24h
+      };
+    }
+
+    // ---------- Secondary: Kraken ----------
+    // Kraken uses quirky pairs (XXBTZUSD, XETHZUSD). We'll try a handful of candidates.
+    const niceSym = (kr) => (kr||'').replace(/^[XZ]/,'').toUpperCase().replace(/^XBT$/,'BTC').replace(/^XETH$/,'ETH');
+    const toKrBase = (b) => (b.toUpperCase()==='BTC' ? 'XXBT' : b.toUpperCase()==='ETH' ? 'XETH' : b.toUpperCase());
+    const toKrQuote = (q) => (q.toUpperCase()==='USD' ? 'ZUSD' : q.toUpperCase()==='EUR' ? 'ZEUR' : q.toUpperCase());
+
+    function parsePairish(s){
+      const m = String(s).trim().toUpperCase().match(/^([A-Z0-9]+)\s*[\/\-:]\s*([A-Z0-9]+)$/);
+      return m ? { base:m[1], quote:m[2] } : null;
+    }
+
+    function krCandidates(input){
+      const out = new Set();
+      const pairish = parsePairish(input);
+
+      const preferQuotes = ['USD','USDT','EUR'];
+
+      if (pairish){
+        // Treat as explicit pair
+        const kb = toKrBase(pairish.base);
+        const kq = toKrQuote(pairish.quote);
+        out.add(kb + kq);
+        out.add(niceSym(kb) + niceSym(kq));
+      } else {
+        // Treat as symbol or name; try common bases with USD first
+        const s = String(input).trim().toUpperCase();
+        const bases = (/^BTC$|^BITCOIN$/.test(s)) ? ['XXBT','XBT','BTC']
+                    : (/^ETH$|^ETHEREUM$/.test(s)) ? ['XETH','ETH']
+                    : [s];
+        bases.forEach(b=>{
+          preferQuotes.forEach(q=>{
+            const kq = toKrQuote(q);
+            out.add(toKrBase(b) + kq);
+            out.add(niceSym(toKrBase(b)) + niceSym(kq));
+          });
+        });
+      }
+      return Array.from(out);
+    }
+
+    async function krTicker(pair){
+      // https://api.kraken.com/0/public/Ticker?pair=XXBTZUSD
+      const url = 'https://api.kraken.com/0/public/Ticker?pair=' + encodeURIComponent(pair);
+      const j = await Services.httpJSON(url);
+      const keys = Object.keys((j && j.result) || {});
+      if (!keys.length) return null;
+      const k = keys[0], r = j.result[k] || {};
+      const last = r.c && +r.c[0];
+      const open = +r.o || null;
+      const changePct = (last!=null && open) ? ((last - open)/open*100) : null;
+      // Normalize to display symbol like BTC/USD
+      const display = (k||pair).toUpperCase()
+        .replace(/XXBT|XBT/,'BTC').replace(/XETH/,'ETH').replace(/ZUSD/,'USD').replace(/ZEUR/,'EUR')
+        .replace(/(BTC|ETH)(USD|EUR|USDT)$/,'$1/$2');
+      return { display, last, changePct };
+    }
+
+    async function tryKraken(input){
+      const cand = krCandidates(input);
+      for (const c of cand) {
+        try {
+          const t = await krTicker(c);
+          if (t && isFinite(t.last)) {
+            const [base, quote] = (t.display.includes('/') ? t.display.split('/') : [t.display, 'USD']);
+            return {
+              source: 'Kraken',
+              name: base,      // best-effort
+              symbol: base,    // e.g., BTC
+              usd: quote === 'USD' ? t.last : null, // only USD showcased here
+              change24h: t.changePct
+            };
+          }
+        } catch(_) {}
+      }
+      return null;
+    }
+
+    // ---------- Orchestrator ----------
+    async function lookup(){
+      const q = (qEl.value||'').trim();
+      if (!q) { setStatus('Enter a ticker or name'); return; }
+      setStatus('Looking up on CoinGecko…');
+      setHTML('');
+
+      // First: CoinGecko
+      let res = null;
+      try { res = await tryCoinGecko(q); } catch(_) {}
+      if (!res) {
+        setStatus('Not found on CoinGecko. Trying Kraken…');
+        try { res = await tryKraken(q); } catch(_) {}
+      }
+
+      if (!res) {
+        setStatus('No price found on either source.');
+        setHTML(`<div class="bad">No result for <b>${esc(q)}</b>.</div>`);
+        return;
+      }
+
+      setStatus(`OK from ${res.source}`);
+      const chg = (typeof res.change24h === 'number') ? (res.change24h>0?`<span class="good">+${res.change24h.toFixed(2)}%</span>`:`<span class="bad">${res.change24h.toFixed(2)}%</span>`) : '-';
+      setHTML(`
+        <div>
+          <div style="font-size:16px;font-weight:700">${esc(res.name || res.symbol || '')} <span class="muted">(${esc(res.symbol || '')})</span></div>
+          <div style="margin-top:.35rem">Price (USD): <b>${fmtUSD(res.usd)}</b></div>
+          <div class="muted" style="margin-top:.2rem">24h change: ${chg}</div>
+          <div class="muted" style="margin-top:.2rem">Source: ${esc(res.source)}</div>
+        </div>
+      `);
+    }
+
+    goBtn.addEventListener('click', lookup);
+    qEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter') lookup(); });
+  }
+});
