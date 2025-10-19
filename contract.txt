@@ -1,0 +1,212 @@
+// NOVA / PLUGIN LAB CONTRACT — FINAL v9.1 (MOBILE-FIRST + FULL AI CONTEXT)
+//
+// Unified contract that teaches any AI — even without prior context — how to build
+// a polished, mobile-first Nova / Plugin Lab plugin using Plugins.register.
+// Ensures the plugin mounts correctly, cleans up, and renders production-grade UI.
+//
+// --------------------------- CORE PURPOSE ---------------------------
+//
+// - Plugins render inside Nova’s sandboxed plugin environment via `Plugins.register`.
+// - Output must be a **polished product UI**, not a developer tool or data dump.
+// - All layouts must be **mobile-first**, responsive, and readable on all devices.
+// - Focus: clarity, alignment, summaries, helpful visuals — zero debug clutter.
+//
+// --------------------------- 0. BASIC STRUCTURE ---------------------------
+//
+// Plugins.register({
+//   id: 'unique-id',
+//   title: 'Friendly Title',
+//   mount(root, { E, on, Services, esc }) {
+//     // Create elements with E()
+//     // Bind events with on()
+//     // Fetch data with Services.httpJSON()
+//     // Return a cleanup function
+//   }
+// });
+//
+// - `id` → short, lowercase unique identifier (e.g. "weather-checker")
+// - `title` → user-facing display title
+// - `mount(root, ctx)` → main render function called when plugin loads
+// - Must `return () => {...}` cleanup callback to remove listeners, abort fetches, etc.
+//
+// --------------------------- 1. PROVIDED HELPERS ---------------------------
+//
+// Inside `mount`, Nova injects:
+//   E(tag, props)        → element factory (like document.createElement + assign)
+//   on(el, ev, fn, opt)  → safe event binder; returns cleanup fn
+//   Services.httpJSON(url) → Promise-based GET helper returning parsed JSON
+//   esc(str)             → HTML-escape utility for safe templating
+//
+// --------------------------- 2. LAYOUT & RESPONSIVE DESIGN ---------------------------
+//
+// - One `.grid` wrapper only:
+//     style="display:grid;grid-template-columns:minmax(0,1fr);gap:1rem"
+// - Suggested 2–4 “cards”: Controls • Summary • Results • (optional) Details
+//
+// - Every input block uses MOBILE-FIRST label-over-input layout:
+//
+//   <div data-fieldrow>
+//     <label for="id">Label</label>
+//     <input id="id" class="inp">
+//   </div>
+//
+// - Labels sit ABOVE inputs by default (stacked).
+// - On wide screens (>720px), convert to side-by-side with JS:
+//
+//     const ro = new ResizeObserver(() => {
+//       const wide = root.clientWidth > 720;
+//       document.querySelectorAll('[data-fieldrow]').forEach(f => {
+//         f.style.display = 'grid';
+//         f.style.gridTemplateColumns = wide ? '10rem minmax(0,1fr)' : 'minmax(0,1fr)';
+//         f.style.alignItems = wide ? 'center' : 'stretch';
+//       });
+//     });
+//     ro.observe(root);
+//
+// --------------------------- 3. HOST STYLES ---------------------------
+//
+// Inputs must have class `.inp` + inline fallbacks for dark mode parity:
+//
+// style="appearance:none;background:var(--surface-1,#0f1a2c);
+//        border:1px solid var(--surface-3,#294064);
+//        color:inherit;border-radius:4px;padding:.35rem .45rem;width:100%;min-width:0;"
+//
+// Buttons must be `<button type="button" class="run">Label</button>`
+//
+// Buttons row must wrap, no horizontal scroll.
+//
+// --------------------------- 4. CONTENT UX ---------------------------
+//
+// - Never expose raw JSON or HTTP details.
+// - Summarize results with badges and short text.
+// - Use compact `<span>` badges:
+//
+//   const pill = (k,v)=>`<span class="muted"
+//     style="display:inline-block;border:1px solid #294064;border-radius:999px;
+//     padding:.15rem .5rem;background:#0f1a2c">${esc(k)}: ${esc(v)}</span>`;
+//
+// - Provide concise `.muted` status lines (“Fetching…”, “OK”, “No results”).
+// - Optionally use inline SVG sparklines for trends.
+//
+// --------------------------- 5. NETWORKING & META ---------------------------
+//
+// - GET requests → `Services.httpJSON(url)`
+// - For POST/custom → use fetch(url,{method,headers,body})
+// - Parse JSON only if content-type includes application/json
+// - Show light meta info (time, bytes) as muted badges
+// - Cancel active requests with AbortController or token pattern
+//
+// Example soft cancel:
+//   let ctrlToken = 0;
+//   const token = ++ctrlToken;
+//   const res = await Services.httpJSON(url);
+//   if (token !== ctrlToken) return; // canceled
+//
+// --------------------------- 6. STORAGE / CLIPBOARD ---------------------------
+//
+// - Persist small values with localStorage under `nova_<pluginid>_*`
+// - Clipboard: only copy user-visible text, never raw data
+// - Optional: allow download of generated user artifacts (e.g. CSV or PNG)
+//
+// --------------------------- 7. ACCESSIBILITY ---------------------------
+//
+// - Always link <label for="...">
+// - Maintain `aria-expanded` for show/hide blocks
+// - Inputs full-width on mobile
+// - Use plain units and short copy (“72°F”, “50%”, “120 ms”)
+// - Never overflow horizontally
+//
+// --------------------------- 8. STATUS UX ---------------------------
+//
+// - Use `.muted` line for human-readable status
+// - Errors must be short and friendly
+// - No stack traces or internal HTTP codes
+//
+// --------------------------- 9. CLEANUP ---------------------------
+//
+// Return a cleanup function from mount:
+//
+//   return () => {
+//     offs.forEach(off => off()); // remove listeners
+//     ctrl.abort(); // cancel fetch if needed
+//     ro.disconnect(); // stop resize observer
+//   };
+//
+// --------------------------- 10. QUICK TEMPLATE ---------------------------
+//
+// Example structure:
+//
+// Plugins.register({
+//   id: 'demo-plugin',
+//   title: 'Demo Plugin',
+//   mount(root, { E, on, Services, esc }) {
+//     const ui = E('div', { className:'grid',
+//       style:'display:grid;grid-template-columns:minmax(0,1fr);gap:1rem' });
+//
+//     const card = E('div', { className:'card' });
+//     card.innerHTML = `
+//       <b>Demo Plugin</b>
+//       <div data-fieldrow>
+//         <label for="d-city">City</label>
+//         <input id="d-city" class="inp" placeholder="e.g., Chicago"
+//           style="width:100%;appearance:none;background:var(--surface-1,#0f1a2c);
+//           border:1px solid var(--surface-3,#294064);color:inherit;
+//           border-radius:4px;padding:.35rem .45rem;">
+//       </div>
+//       <div style="margin-top:.5rem">
+//         <button id="d-go" class="run" type="button">Run</button>
+//       </div>
+//       <div id="d-status" class="muted" style="margin-top:.35rem">—</div>
+//     `;
+//
+//     const summary = E('div', { className:'card' });
+//     summary.innerHTML = `<b>Summary</b><div id="d-line" class="muted">—</div>`;
+//
+//     ui.append(card, summary);
+//     root.append(ui);
+//
+//     const goBtn = card.querySelector('#d-go');
+//     const cityEl = card.querySelector('#d-city');
+//     const stEl = card.querySelector('#d-status');
+//     const lineEl = summary.querySelector('#d-line');
+//
+//     const offs = [];
+//     const add = (el,ev,fn,opt)=>{ const off=on(el,ev,fn,opt);offs.push(off);return off; };
+//
+//     add(goBtn,'click',async()=>{
+//       const city=cityEl.value.trim();
+//       if(!city){ stEl.textContent='Enter a city'; return; }
+//       stEl.textContent='Fetching…';
+//       try{
+//         const data=await Services.httpJSON(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+//         const cur=data.current_condition?.[0];
+//         if(!cur) throw new Error('No data');
+//         lineEl.textContent=`${cur.temp_F}°F • ${cur.weatherDesc?.[0]?.value||''}`;
+//         stEl.textContent='OK';
+//       }catch(e){ stEl.textContent='Network error'; }
+//     });
+//
+//     // Responsive label alignment
+//     const ro=new ResizeObserver(()=>{
+//       const wide=root.clientWidth>720;
+//       root.querySelectorAll('[data-fieldrow]').forEach(f=>{
+//         f.style.display='grid';
+//         f.style.gridTemplateColumns=wide?'10rem minmax(0,1fr)':'minmax(0,1fr)';
+//         f.style.alignItems=wide?'center':'stretch';
+//       });
+//     });
+//     ro.observe(root);
+//
+//     return ()=>{offs.forEach(off=>off());ro.disconnect();};
+//   }
+// });
+//
+// --------------------------- 11. OUTPUT QUALITY CHECK ---------------------------
+//
+// ✅ Always mobile-first, no horizontal scroll
+// ✅ Polished, readable, end-user UI
+// ✅ Labels stack then align on desktop
+// ✅ Friendly summaries, badges, short copy
+// ✅ No developer toggles or JSON dumps
+
+Do not send back the contract info- just the plugin
