@@ -209,4 +209,4 @@
 // ✅ Friendly summaries, badges, short copy
 // ✅ No developer toggles or JSON dumps
 
-Do not send back the contract info- just the plugin
+Do not send back the contract info- just the plugin. Use only Open APIs and api key placeholder only when specifically asked to use a non open api. otherwise just find an open api no key needed
